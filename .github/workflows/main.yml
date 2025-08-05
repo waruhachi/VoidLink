@@ -17,7 +17,7 @@ jobs:
 
       - name: Build FullScreen Version
         run: |
-          plutil -replace UIRequiresFullScreen -bool true Limelight/Limelight-Info.plist
+          plutil -replace UIRequiresFullScreen -bool true VoidLink/Limelight-Info.plist
           xcodebuild -verbose -scheme Moonlight-ZWM -sdk iphoneos -configuration AppStoreDistribution archive -archivePath $PWD/build/MoonlightFullScreen.xcarchive CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED="NO" CODE_SIGN_ENTITLEMENTS="" CODE_SIGNING_ALLOWED="NO"
           mkdir -p ./build/IPA_FullScreen && mkdir -p ./build/IPA_FullScreen/Payload
           cp -r ./build/MoonlightFullScreen.xcarchive/Products/Applications/Moonlight-ZWM.app ./build/IPA_FullScreen/Payload/Moonlight-ZWM.app
