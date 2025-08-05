@@ -18,8 +18,8 @@ jobs:
       - name: Build FullScreen Version
         run: |
           plutil -replace UIRequiresFullScreen -bool true VoidLink/Limelight-Info.plist
-          rm -f ~/Library/Developer/Xcode/DerivedData/VoidLink-*/Build/Intermediates.noindex/ArchiveIntermediates/VoidLink/InstallationBuildProductsLocation/Applications/VoidLink.app/Signatures/OpenSSL.xcframework-ios.signature
           xcodebuild -verbose -scheme VoidLink -sdk iphoneos -configuration AppStoreDistribution archive -archivePath $PWD/build/MoonlightFullScreen.xcarchive CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED="NO" CODE_SIGN_ENTITLEMENTS="" CODE_SIGNING_ALLOWED="NO"
+          rm -f ~/Library/Developer/Xcode/DerivedData/VoidLink-*/Build/Intermediates.noindex/ArchiveIntermediates/VoidLink/InstallationBuildProductsLocation/Applications/VoidLink.app/Signatures/OpenSSL.xcframework-ios.signature
           mkdir -p ./build/IPA_FullScreen && mkdir -p ./build/IPA_FullScreen/Payload
           cp -r ./build/MoonlightFullScreen.xcarchive/Products/Applications/VoidLink.app ./build/IPA_FullScreen/Payload/VoidLink.app
           cd ./build/IPA_FullScreen && zip -r ../../build/VoidLink_FullScreen.ipa ./Payload/* && cd ../..
@@ -33,8 +33,8 @@ jobs:
       - name: Build StageManager Version
         run: |
           plutil -replace UIRequiresFullScreen -bool false Limelight/Limelight-Info.plist
-          rm -f ~/Library/Developer/Xcode/DerivedData/VoidLink-*/Build/Intermediates.noindex/ArchiveIntermediates/VoidLink/InstallationBuildProductsLocation/Applications/VoidLink.app/Signatures/OpenSSL.xcframework-ios.signature
           xcodebuild -verbose -scheme VoidLink -sdk iphoneos -configuration AppStoreDistribution archive -archivePath $PWD/build/MoonlightStageManager.xcarchive CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED="NO" CODE_SIGN_ENTITLEMENTS="" CODE_SIGNING_ALLOWED="NO"
+          rm -f ~/Library/Developer/Xcode/DerivedData/VoidLink-*/Build/Intermediates.noindex/ArchiveIntermediates/VoidLink/InstallationBuildProductsLocation/Applications/VoidLink.app/Signatures/OpenSSL.xcframework-ios.signature
           mkdir -p ./build/IPA_StageManager && mkdir -p ./build/IPA_StageManager/Payload
           cp -r ./build/MoonlightStageManager.xcarchive/Products/Applications/VoidLink.app ./build/IPA_StageManager/Payload/VoidLink.app
           cd ./build/IPA_StageManager && zip -r ../../build/VoidLink_StageManager.ipa ./Payload/* && cd ../..
