@@ -5,41 +5,97 @@ on:
 
 jobs:
   build:
-    name: Build IPAs
     runs-on: macos-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: "recursive"
 
-      - name: Checkout submodules
-        run: "git submodule update --init --recursive"
-
-      - name: Build FullScreen Version
+      - name: Build FullScreen IPA
         run: |
-          plutil -replace UIRequiresFullScreen -bool true VoidLink/Limelight-Info.plist
-          xcodebuild -verbose -scheme VoidLink -sdk iphoneos -configuration AppStoreDistribution archive -archivePath $PWD/build/MoonlightFullScreen.xcarchive CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED="NO" CODE_SIGN_ENTITLEMENTS="" CODE_SIGNING_ALLOWED="NO"
-          rm -f ~/Library/Developer/Xcode/DerivedData/VoidLink-*/Build/Intermediates.noindex/ArchiveIntermediates/VoidLink/InstallationBuildProductsLocation/Applications/VoidLink.app/Signatures/OpenSSL.xcframework-ios.signature
-          mkdir -p ./build/IPA_FullScreen && mkdir -p ./build/IPA_FullScreen/Payload
-          cp -r ./build/MoonlightFullScreen.xcarchive/Products/Applications/VoidLink.app ./build/IPA_FullScreen/Payload/VoidLink.app
-          cd ./build/IPA_FullScreen && zip -r ../../build/VoidLink_FullScreen.ipa ./Payload/* && cd ../..
-      
-      - name: Upload FullScreen IPA to Artifacts
+          set -e
+          WORKING_LOCATION="$GITHUB_WORKSPACE"
+          APP="VoidLink"
+          VARIANT="FullScreen"
+
+          cd "$WORKING_LOCATION"
+          mkdir -p build && cd build
+
+          plutil -replace UIRequiresFullScreen -bool true "../$APP/Limelight-Info.plist"
+
+          xcodebuild \
+            -project "$WORKING_LOCATION/$APP.xcodeproj" \
+            -scheme "$APP" \
+            -configuration Release \
+            -derivedDataPath "$WORKING_LOCATION/build/DerivedDataApp" \
+            -destination 'generic/platform=iOS' \
+            clean build \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_ENTITLEMENTS="" \
+            CODE_SIGNING_ALLOWED="NO"
+
+          DD_APP="$WORKING_LOCATION/build/DerivedDataApp/Build/Products/Release-iphoneos/$APP.app"
+          cp -R "$DD_APP" "$APP.app"
+
+          codesign --remove "$APP.app" || true
+          [ -d "$APP.app/_CodeSignature" ] && rm -rf "$APP.app/_CodeSignature"
+          [ -f "$APP.app/embedded.mobileprovision" ] && rm -f "$APP.app/embedded.mobileprovision"
+
+          mkdir -p Payload
+          cp -R "$APP.app" "Payload/$APP.app"
+          strip "Payload/$APP.app/$APP"
+          zip -vr "$APP"_"$VARIANT.ipa" Payload
+
+          rm -rf Payload "$APP.app"
+
+      - name: Upload FullScreen IPA
         uses: actions/upload-artifact@v4
         with:
           name: VoidLink_FullScreen.ipa
           path: build/VoidLink_FullScreen.ipa
 
-      - name: Build StageManager Version
+      - name: Build StageManager IPA
         run: |
-          plutil -replace UIRequiresFullScreen -bool false Limelight/Limelight-Info.plist
-          xcodebuild -verbose -scheme VoidLink -sdk iphoneos -configuration AppStoreDistribution archive -archivePath $PWD/build/MoonlightStageManager.xcarchive CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED="NO" CODE_SIGN_ENTITLEMENTS="" CODE_SIGNING_ALLOWED="NO"
-          rm -f ~/Library/Developer/Xcode/DerivedData/VoidLink-*/Build/Intermediates.noindex/ArchiveIntermediates/VoidLink/InstallationBuildProductsLocation/Applications/VoidLink.app/Signatures/OpenSSL.xcframework-ios.signature
-          mkdir -p ./build/IPA_StageManager && mkdir -p ./build/IPA_StageManager/Payload
-          cp -r ./build/MoonlightStageManager.xcarchive/Products/Applications/VoidLink.app ./build/IPA_StageManager/Payload/VoidLink.app
-          cd ./build/IPA_StageManager && zip -r ../../build/VoidLink_StageManager.ipa ./Payload/* && cd ../..
-      
-      - name: Upload StageManager IPA to Artifacts
+          set -e
+          WORKING_LOCATION="$GITHUB_WORKSPACE"
+          APP="VoidLink"
+          VARIANT="StageManager"
+
+          cd "$WORKING_LOCATION"
+          mkdir -p build && cd build
+
+          plutil -replace UIRequiresFullScreen -bool false "../$APP/Limelight-Info.plist"
+
+          xcodebuild \
+            -project "$WORKING_LOCATION/$APP.xcodeproj" \
+            -scheme "$APP" \
+            -configuration Release \
+            -derivedDataPath "$WORKING_LOCATION/build/DerivedDataApp" \
+            -destination 'generic/platform=iOS' \
+            clean build \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_ENTITLEMENTS="" \
+            CODE_SIGNING_ALLOWED="NO"
+
+          DD_APP="$WORKING_LOCATION/build/DerivedDataApp/Build/Products/Release-iphoneos/$APP.app"
+          cp -R "$DD_APP" "$APP.app"
+
+          codesign --remove "$APP.app" || true
+          [ -d "$APP.app/_CodeSignature" ] && rm -rf "$APP.app/_CodeSignature"
+          [ -f "$APP.app/embedded.mobileprovision" ] && rm -f "$APP.app/embedded.mobileprovision"
+
+          mkdir -p Payload
+          cp -R "$APP.app" "Payload/$APP.app"
+          strip "Payload/$APP.app/$APP"
+          zip -vr "$APP"_"$VARIANT.ipa" Payload
+
+          rm -rf Payload "$APP.app"
+
+      - name: Upload StageManager IPA
         uses: actions/upload-artifact@v4
         with:
           name: VoidLink_StageManager.ipa
