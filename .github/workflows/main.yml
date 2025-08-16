@@ -18,9 +18,32 @@ jobs:
         with:
           xcode-version: latest-stable
 
-      - name: Build FullScreen IPA
+      - name: Set DEVELOPER_DIR and show versions
         run: |
           set -e
+          sudo xcode-select -s /Applications/Xcode_16.4.app
+          export DEVELOPER_DIR=/Applications/Xcode_16.4.app/Contents/Developer
+          echo "DEVELOPER_DIR=$DEVELOPER_DIR"
+          xcodebuild -version
+          which clang
+          which swiftc
+        env:
+          DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+
+      - name: Detect stray legacy Xcode path in build settings
+        run: |
+          set -e
+          APP="VoidLink"
+
+          xcodebuild -project "$APP.xcodeproj" -scheme "$APP" -showBuildSettings | \
+            grep -E "/Applications/Xcode\.app" && {
+              echo "❌ Found /Applications/Xcode.app in build settings. Remove hard-coded paths or hide old Xcode.";
+              exit 1;
+            } || echo "✅ No legacy Xcode path leakage."
+
+      - name: Build FullScreen IPA
+        run: |
+          set -euo pipefail
           WORKING_LOCATION="$GITHUB_WORKSPACE"
           APP="VoidLink"
           VARIANT="FullScreen"
@@ -51,6 +74,10 @@ jobs:
 
           mkdir -p Payload
           cp -R "$APP.app" "Payload/$APP.app"
+
+          EXEC=$(defaults read "Payload/$APP.app/Info" CFBundleExecutable 2>/dev/null || echo "$APP")
+          [ -f "Payload/$APP.app/$EXEC" ] && strip "Payload/$APP.app/$EXEC" || true
+
           strip "Payload/$APP.app/$APP"
           zip -vr "$APP"_"$VARIANT.ipa" Payload
 
@@ -64,7 +91,7 @@ jobs:
 
       - name: Build StageManager IPA
         run: |
-          set -e
+          set -euo pipefail
           WORKING_LOCATION="$GITHUB_WORKSPACE"
           APP="VoidLink"
           VARIANT="StageManager"
@@ -95,6 +122,10 @@ jobs:
 
           mkdir -p Payload
           cp -R "$APP.app" "Payload/$APP.app"
+
+          EXEC=$(defaults read "Payload/$APP.app/Info" CFBundleExecutable 2>/dev/null || echo "$APP")
+          [ -f "Payload/$APP.app/$EXEC" ] && strip "Payload/$APP.app/$EXEC" || true
+          
           strip "Payload/$APP.app/$APP"
           zip -vr "$APP"_"$VARIANT.ipa" Payload
 
