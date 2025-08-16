@@ -20,7 +20,7 @@ jobs:
 
       - name: Set DEVELOPER_DIR and show versions
         run: |
-          set -e
+          set -euo pipefail
           sudo xcode-select -s /Applications/Xcode_16.4.app
           export DEVELOPER_DIR=/Applications/Xcode_16.4.app/Contents/Developer
           echo "DEVELOPER_DIR=$DEVELOPER_DIR"
@@ -29,6 +29,55 @@ jobs:
           which swiftc
         env:
           DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+
+      - name: Derive and sanitize HEADER_SEARCH_PATHS
+        id: sanitize_paths
+        run: |
+          set -euo pipefail
+          APP="${APP:-VoidLink}"
+
+          RAW_LINE=$(xcodebuild -project "$APP.xcodeproj" -scheme "$APP" -showBuildSettings 2>/dev/null | sed -n 's/^[[:space:]]*HEADER_SEARCH_PATHS = //p' | head -n 1)
+
+          if [ -z "$RAW_LINE" ]; then
+            echo "Failed to extract HEADER_SEARCH_PATHS from build settings" >&2
+            exit 1
+          fi
+
+          echo "Original HEADER_SEARCH_PATHS:"
+          printf '%s\n' "$RAW_LINE"
+
+          SANITIZED=$(printf '%s\n' "$RAW_LINE" | tr ' ' '\n' | \
+            grep -v '^$' | \
+            grep -v '/Applications/Xcode\.app/Contents/Developer/Toolchains/XcodeDefault\.xctoolchain/usr/include' | \
+            grep -v '/Users/runner/Library/Developer/Xcode/DerivedData' | \
+            tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' | sed 's/[[:space:]]$//')
+
+          if echo "$SANITIZED" | grep -q '/Applications/Xcode\.app/Contents/Developer/Toolchains/XcodeDefault\.xctoolchain/usr/include'; then
+            echo "Sanitization failed – legacy toolchain path still present." >&2
+            exit 1
+          fi
+
+          if [ -z "$SANITIZED" ]; then
+            echo "After filtering, SANITIZED became empty. Falling back to minimal relative set." >&2
+            SANITIZED='$(inherited) $(SRCROOT)/moonlight-common/moonlight-common-c/src $(SRCROOT)/libs/**'
+          else
+            case "$SANITIZED" in
+              *"\$(inherited)"*)
+                : ;;
+              *)
+                SANITIZED="$(echo $(echo '$(inherited)') ) $SANITIZED"
+                ;;
+            esac
+          fi
+
+          echo "Sanitized HEADER_SEARCH_PATHS:"
+          printf '%s\n' "$SANITIZED"
+
+          {
+            echo "SANITIZED_HEADER_SEARCH_PATHS<<EOF"
+            echo "$SANITIZED"
+            echo "EOF"
+          } >> "$GITHUB_ENV"
 
       - name: Build FullScreen IPA
         run: |
@@ -52,25 +101,27 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_ENTITLEMENTS="" \
-            CODE_SIGNING_ALLOWED="NO"
+            CODE_SIGNING_ALLOWED="NO" \
+            HEADER_SEARCH_PATHS="$SANITIZED_HEADER_SEARCH_PATHS"
 
           DD_APP="$WORKING_LOCATION/build/DerivedDataApp/Build/Products/Release-iphoneos/$APP.app"
-          cp -R "$DD_APP" "$APP.app"
+          rm -rf "$BUILD_ROOT/Payload" "$BUILD_ROOT/$APP.app"
+          cp -R "$DD_APP" "$BUILD_ROOT/$APP.app"
+          (codesign --remove "$BUILD_ROOT/$APP.app" || true) 2>/dev/null
+          rm -rf "$BUILD_ROOT/$APP.app/_CodeSignature" "$BUILD_ROOT/$APP.app/embedded.mobileprovision" || true
 
-          codesign --remove "$APP.app" || true
-          [ -d "$APP.app/_CodeSignature" ] && rm -rf "$APP.app/_CodeSignature"
-          [ -f "$APP.app/embedded.mobileprovision" ] && rm -f "$APP.app/embedded.mobileprovision"
+          mkdir -p "$BUILD_ROOT/Payload"
+          cp -R "$BUILD_ROOT/$APP.app" "$BUILD_ROOT/Payload/$APP.app"
 
-          mkdir -p Payload
-          cp -R "$APP.app" "Payload/$APP.app"
+          EXEC=$(defaults read "$BUILD_ROOT/Payload/$APP.app/Info" CFBundleExecutable 2>/dev/null || echo "$APP")
+          if [ -f "$BUILD_ROOT/Payload/$APP.app/$EXEC" ]; then
+            strip "$BUILD_ROOT/Payload/$APP.app/$EXEC" || true
+          fi
 
-          EXEC=$(defaults read "Payload/$APP.app/Info" CFBundleExecutable 2>/dev/null || echo "$APP")
-          [ -f "Payload/$APP.app/$EXEC" ] && strip "Payload/$APP.app/$EXEC" || true
+          (cd "$BUILD_ROOT" && zip -qry "$APP"_"$VARIANT".ipa Payload)
+          rm -rf "$BUILD_ROOT/Payload" "$BUILD_ROOT/$APP.app"
 
-          strip "Payload/$APP.app/$APP"
-          zip -vr "$APP"_"$VARIANT.ipa" Payload
-
-          rm -rf Payload "$APP.app"
+          echo "Produced IPA: $BUILD_ROOT/${APP}_${VARIANT}.ipa"
 
       - name: Upload FullScreen IPA
         uses: actions/upload-artifact@v4
