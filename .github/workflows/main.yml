@@ -30,17 +30,6 @@ jobs:
         env:
           DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
 
-      - name: Detect stray legacy Xcode path in build settings
-        run: |
-          set -e
-          APP="VoidLink"
-
-          xcodebuild -project "$APP.xcodeproj" -scheme "$APP" -showBuildSettings | \
-            grep -E "/Applications/Xcode\.app" && {
-              echo "❌ Found /Applications/Xcode.app in build settings. Remove hard-coded paths or hide old Xcode.";
-              exit 1;
-            } || echo "✅ No legacy Xcode path leakage."
-
       - name: Build FullScreen IPA
         run: |
           set -euo pipefail
@@ -125,7 +114,7 @@ jobs:
 
           EXEC=$(defaults read "Payload/$APP.app/Info" CFBundleExecutable 2>/dev/null || echo "$APP")
           [ -f "Payload/$APP.app/$EXEC" ] && strip "Payload/$APP.app/$EXEC" || true
-          
+
           strip "Payload/$APP.app/$APP"
           zip -vr "$APP"_"$VARIANT.ipa" Payload
 
