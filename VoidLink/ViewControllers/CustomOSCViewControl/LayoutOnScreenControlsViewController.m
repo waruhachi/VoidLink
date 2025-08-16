@@ -123,6 +123,7 @@
             widgetView.trackballDecelerationRate = buttonState.decelerationRate;
             widgetView.stickIndicatorOffset = buttonState.stickIndicatorOffset;
             widgetView.minStickOffset = buttonState.minStickOffset;
+            widgetView.slideMode = buttonState.slideMode;
             // Add the widgetView to the view controller's view
             [self.view insertSubview:widgetView belowSubview:self.widgetPanelStack];
             buttonState.position = [self denormalizeWidgetPosition:buttonState.position];
@@ -255,6 +256,10 @@
                                              selector: @selector(handleReturnToForeground)
                                                  name: UIApplicationDidBecomeActiveNotification
                                                object: nil];
+    [[NSNotificationCenter defaultCenter] addObserver: self
+                                             selector: @selector(handleEnterBackground)
+                                                 name: UIApplicationWillResignActiveNotification
+                                               object: nil];
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(deviceOrientationDidChange) // handle orientation change since i made portrait mode available
                                                  name:UIDeviceOrientationDidChangeNotification
@@ -267,24 +272,7 @@
 
 #pragma mark - Class Helper Functions
 
-- (void)handleReturnToForeground {
-    [OSCProfilesManager setOnScreenWidgetViewsSet:self.onScreenWidgetViews];   // pass the keyboard button dict to profiles manager
-}
-
-- (void)viewWillTransitionToSize:(CGSize)size withTransitionCoordinator:(id<UIViewControllerTransitionCoordinator>)coordinator{
-    viewWillBeResized = true;
-    [self clearStickIndicator];
-    if(!_quickSwitchEnabled) [self saveTapped:nil];
-}
-
-- (void)deviceOrientationDidChange{
-    [self performSelector:@selector(handleOrientationChangeForOnScreenWidgets) withObject:self afterDelay:0.05];
-}
-
-- (void)handleOrientationChangeForOnScreenWidgets{
-    if(!viewWillBeResized) return;
-    [self setupWidgetPanel];
-
+- (void)updateViewBounds{
     viewWillBeResized = false;
     selectedWidgetView = nil;
     selectedControllerLayer = nil;
@@ -293,6 +281,33 @@
     [OSCProfilesManager setOnScreenWidgetViewsSet:self.onScreenWidgetViews];   // pass the keyboard button dict to profiles manager
     [self reloadOnScreenWidgetViews];
     [self reloadLegacyOnScreenControls];
+}
+
+- (void)handleEnterBackground{
+    [self saveTapped:nil];
+}
+
+- (void)handleReturnToForeground {
+    // [OSCProfilesManager setOnScreenWidgetViewsSet:self.onScreenWidgetViews];   // pass the keyboard button dict to profiles manager
+    [self setupWidgetPanel];
+    [self updateViewBounds];
+}
+
+- (void)viewWillTransitionToSize:(CGSize)size withTransitionCoordinator:(id<UIViewControllerTransitionCoordinator>)coordinator{
+    if ([UIApplication sharedApplication].applicationState != UIApplicationStateActive) return;
+    viewWillBeResized = true;
+    [self clearStickIndicator];
+    if(!_quickSwitchEnabled) [self saveTapped:nil];
+}
+
+- (void)deviceOrientationDidChange{
+    [self performSelector:@selector(handleOrientationChangeForOnScreenWidgets) withObject:self afterDelay:0.0];
+}
+
+- (void)handleOrientationChangeForOnScreenWidgets{
+    if(!viewWillBeResized) return;
+    [self setupWidgetPanel];
+    [self updateViewBounds];
 }
 
 /* fades the 'Undo Button' in or out depending on whether the user has any OSC layout changes to undo */
@@ -620,6 +635,7 @@
     newWidget.minStickOffset = [widgetInitParams[@"minStickOffsetString"] floatValue];
     [newWidget setVibrationWithStyle:widget.vibrationStyle];
     newWidget.mouseButtonAction = widget.mouseButtonAction;
+    newWidget.slideMode = widget.slideMode;
     [self.view insertSubview:newWidget belowSubview:self.widgetPanelStack];
 
     if(createNew) [newWidget setLocationWithPosition:CGPointMake(90, 130)];
@@ -700,6 +716,13 @@
     [self->selectedWidgetView.crossMarkLayer removeFromSuperlayer];
 }
 
+/*
+- (CGFloat)denormalizeSizeFactor:(CGFloat)sizeFactor{
+    bool isNormalizedSizeFactor = sizeFactor > 6;
+    return isNormalizedSizeFactor ? sizeFactor/10000*[UIScreen mainScreen].bounds.size.width
+}
+ */
+
 - (void)widgetViewTapped: (NSNotification *)notification{
     //self.undoButton.alpha = selectedWidgetView.layoutChanges.count>1 && !CGPointEqualToPoint(selectedWidgetView.layoutChanges.lastObject.CGPointValue, selectedWidgetView.initialCenter)? 1.0 : 0.3;
 
@@ -724,10 +747,13 @@
     
     [self.layoutOSC updateGuidelinesForOnScreenWidget:self->selectedWidgetView]; // shows guideline immediately when widget is tapped
     // setup slider values
-    [self.widgetSizeSlider setValue: self->selectedWidgetView.widthFactor];
-    [self.widgetHeightSlider setValue: self->selectedWidgetView.heightFactor];
+    [self.widgetSizeSlider setValue: self->selectedWidgetView.deNormalizedWidthFactor];
+    [self.widgetHeightSlider setValue: self->selectedWidgetView.deNormalizedHeightFactor];
     [self.widgetAlphaSlider setValue: self->selectedWidgetView.backgroundAlpha];
     [self.widgetBorderWidthSlider setValue:self->selectedWidgetView.borderWidth];
+    
+    self.slidableStack.hidden = selectedWidgetView.widgetType != WidgetTypeEnumButton;
+    [self.slidableSelector setSelectedSegmentIndex:selectedWidgetView.slideMode];
     
     bool showSensitivityFactorStack = selectedWidgetView.hasSensitivityTweak;
     bool showStickIndicatorOffsetStack = selectedWidgetView.hasStickIndicator;
@@ -758,10 +784,12 @@
         [self->selectedWidgetView updateStickIndicator];
     }
     [self autoFitLabel:self.widgetSizeLabel];
-    [self.widgetSizeLabel setText:[LocalizationHelper localizedStringForKey:@"Size: %.2f", self->selectedWidgetView.widthFactor]];
+    
+
+    [self.widgetSizeLabel setText:[LocalizationHelper localizedStringForKey:@"Size: %.2f", self->selectedWidgetView.deNormalizedWidthFactor]];
     
     [self autoFitLabel:self.widgetHeightLabel];
-    [self.widgetHeightLabel setText:[LocalizationHelper localizedStringForKey:@"Height: %.2f", self->selectedWidgetView.heightFactor]];
+    [self.widgetHeightLabel setText:[LocalizationHelper localizedStringForKey:@"Height: %.2f", self->selectedWidgetView.deNormalizedHeightFactor]];
     
     [self autoFitLabel:self.widgetAlphaLabel];
     [self.widgetAlphaLabel setText:[LocalizationHelper localizedStringForKey:@"Alpha: %.2f", self->selectedWidgetView.backgroundAlpha]];
@@ -782,6 +810,7 @@
         self.vibrationStyleSelector.selectedSegmentIndex = self->selectedWidgetView.vibrationStyle;
     }
 }
+
 
 - (void)legacyOscLayerTapped: (NSNotification *)notification{
     [self enableCommonWidgetTools];
@@ -877,6 +906,12 @@
     }
 }
 
+- (void)slideModeChanged:(UISegmentedControl* )sender{
+    if(self->selectedWidgetView != nil && self->widgetViewSelected){
+        selectedWidgetView.slideMode = _slidableSelector.selectedSegmentIndex;
+    }
+}
+
 - (void)vibrationStyleChanged:(UISegmentedControl* )sender{
     bool vibraiontOn;
     if (@available(iOS 13.0, *)) {
@@ -943,9 +978,11 @@
             UIButton *button = (UIButton *)subview;
             button.imageView.image = [button.imageView.image imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
             button.tintColor = [UIColor systemTealColor];
-            if(!button.imageView.image){
+            if(@available(iOS 13.0, *)) nil;
+            else{
                 NSLog(@"missing image %d", button==_saveButton);
                 button.titleLabel.font = [UIFont systemFontOfSize:18 weight:UIFontWeightMedium];
+                [button setImage:nil forState:UIControlStateNormal];
                 if(button==_exitButton) [button setTitle:[LocalizationHelper localizedStringForKey:@"Exit"] forState:UIControlStateNormal];
                 if(button==trashCanButton) [button setTitle:[LocalizationHelper localizedStringForKey:@"Del"] forState:UIControlStateNormal];
                 if(button==undoButton) [button setTitle:[LocalizationHelper localizedStringForKey:@"Undo"] forState:UIControlStateNormal];
@@ -953,6 +990,7 @@
                 if(button==_loadButton) [button setTitle:[LocalizationHelper localizedStringForKey:@"Load"] forState:UIControlStateNormal];
                 if(button==_addButton) [button setTitle:[LocalizationHelper localizedStringForKey:@"Add"] forState:UIControlStateNormal];
                 if(button==_editButton) [button setTitle:[LocalizationHelper localizedStringForKey:@"Edit"] forState:UIControlStateNormal];
+
             }
         }
         [self handleMissingToolBarIcon:subview];
@@ -1022,12 +1060,17 @@
     self.stickIndicatorOffsetLabel.text = [LocalizationHelper localizedStringForKey:@"Indicator Offset"];
     self.stickIndicatorOffsetStack.hidden = YES;
     
-    [self.mouseButtonDownSelector addTarget:self action:@selector(mouseDownButtonChanged:) forControlEvents:(UIControlEventValueChanged)];
     NSDictionary *whiteFontAttributes = @{
         NSForegroundColorAttributeName: [UIColor whiteColor]
     };
+
+    [self.mouseButtonDownSelector addTarget:self action:@selector(mouseDownButtonChanged:) forControlEvents:(UIControlEventValueChanged)];
     [self.mouseButtonDownSelector setTitleTextAttributes:whiteFontAttributes forState:UIControlStateNormal];
     self.mouseDownButtonStack.hidden = YES;
+
+    [self.slidableSelector addTarget:self action:@selector(slideModeChanged:) forControlEvents:(UIControlEventValueChanged)];
+    [self.slidableSelector setTitleTextAttributes:whiteFontAttributes forState:UIControlStateNormal];
+    self.slidableStack.hidden = YES;
 
     
     if([self isIPhone]){
@@ -1181,6 +1224,8 @@
     
     _oscProfilesTableViewController.currentOSCButtonLayers = self.layoutOSC.OSCButtonLayers;
     
+    // _oscProfilesTableViewController.modalPresentationStyle = UIModalPresentationCurrentContext;
+    _oscProfilesTableViewController.modalPresentationStyle = UIModalPresentationOverCurrentContext;
     [self presentViewController:_oscProfilesTableViewController animated:YES completion:nil];
 }
 
@@ -1196,7 +1241,8 @@
     OnScreenWidgetView* widget = (OnScreenWidgetView* )sender;
     [self.layoutOSC updateGuidelinesForOnScreenWidget:widget];
     [self.view bringSubviewToFront:widget];
-    trashCanButton.tintColor = [self layerIsOverlappingWithTrashcanButton:widget.layer] ? [UIColor redColor] : trashCanStoryBoardColor;
+    trashCanButton.tintColor = trashCanButton.titleLabel.textColor = [self layerIsOverlappingWithTrashcanButton:widget.layer] ? [UIColor redColor] : trashCanStoryBoardColor;
+
     self.undoButton.alpha = 1.0;
 }
 
@@ -1247,10 +1293,8 @@
 
     // -------- for OSC buttons
     [self.layoutOSC touchesMoved:touches withEvent:event];
-    if ([self layerIsOverlappingWithTrashcanButton:self.layoutOSC.layerBeingDragged]) { // check if user is dragging around a button and hovering it over the trash can button
-        trashCanButton.tintColor = [UIColor redColor];
-    }
-    else trashCanButton.tintColor = trashCanStoryBoardColor;
+    
+    trashCanButton.tintColor = trashCanButton.titleLabel.textColor = [self layerIsOverlappingWithTrashcanButton:self.layoutOSC.layerBeingDragged] ? [UIColor redColor] : trashCanStoryBoardColor;
 }
 
 - (bool)touchWithinTashcanButton:(UITouch* )touch {
@@ -1324,7 +1368,7 @@
     }
     
     
-    trashCanButton.tintColor = trashCanStoryBoardColor;
+    trashCanButton.tintColor = trashCanButton.titleLabel.textColor = trashCanStoryBoardColor;
     widgetPanelMovedByTouch = false;
 }
 

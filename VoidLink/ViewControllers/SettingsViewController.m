@@ -21,6 +21,9 @@
 #import "LocalizationHelper.h"
 
 @implementation SettingsViewController {
+    NSLayoutConstraint *parentStackLeadingConstraint;
+    NSLayoutConstraint *parentStackWidthConstraint;
+    
     NSInteger _bitrate;
     NSInteger _lastSelectedResolutionIndex;
     bool justEnteredSettingsView;
@@ -230,39 +233,15 @@ CGSize resolutionTable[RESOLUTION_TABLE_SIZE];
     dispatch_after(delayTime, dispatch_get_main_queue(), ^{// Code to execute after the delay
         // [self updateResolutionAccordingly];
     });
-    
 }
 
 // Adjust the subviews for the safe area on the iPhone X.
 - (void)viewSafeAreaInsetsDidChange {
     [super viewSafeAreaInsetsDidChange];
-    
-    //if (@available(iOS 11.0, *)) {
-    if (false) { // cancel this for portrait mode
-        for (UIView* view in self.view.subviews) {
-            // HACK: The official safe area is much too large for our purposes
-            // so we'll just use the presence of any safe area to indicate we should
-            // pad by 20.
-            if (self.view.safeAreaInsets.left >= 20 || self.view.safeAreaInsets.right >= 20) {
-                view.frame = CGRectMake(view.frame.origin.x + 20, view.frame.origin.y, view.frame.size.width, view.frame.size.height);
-            }
-        }
-    }
 }
 
-BOOL isCustomResolution(CGSize res) {
-    if (res.width == 0 && res.height == 0) {
-        return NO;
-    }
-    
-    for (int i = 0; i < RESOLUTION_TABLE_CUSTOM_INDEX; i++) {
-        NSLog(@"customRes: %f, %f, isrl: %f, %f", res.width, res.height, resolutionTable[i].width, resolutionTable[i].height);
-        if ((res.width == resolutionTable[i].width && res.height == resolutionTable[i].height) || (res.height == resolutionTable[i].width && res.width == resolutionTable[i].height)) {
-            return NO;
-        }
-    }
-    
-    return YES;
+BOOL isCustomResolution(int resolutionSelected) {
+    return resolutionSelected == RESOLUTION_TABLE_CUSTOM_INDEX;
 }
 
 + (bool)isLandscapeNow {
@@ -286,32 +265,10 @@ BOOL isCustomResolution(CGSize res) {
 
 - (void)updateResolutionTable{
     if(self.mainFrameViewController.settingsExpandedInStreamView) return;
-    
-    UIWindow *window = self.view.window;
-    NSLog(@" window %@", window);
 
-    CGFloat screenScale = window.screen.scale;
-    CGFloat safeAreaWidth = (window.frame.size.width - window.safeAreaInsets.left - window.safeAreaInsets.right) * screenScale;
-    CGFloat appWindowWidth = window.frame.size.width * screenScale;
-    CGFloat appWindowHeight = window.frame.size.height * screenScale;
-    if([self isAirPlayEnabled] && UIScreen.screens.count > 1){
-        CGRect bounds = [UIScreen.screens.lastObject bounds];
-        screenScale = [UIScreen.screens.lastObject scale];
-        appWindowWidth = bounds.size.width * screenScale;
-        appWindowHeight = bounds.size.height * screenScale;
-    }
-    
-    bool needSwapWidthAndHeight = appWindowWidth < appWindowHeight;
-
-    for(uint8_t i=0;i<6;i++){
-        CGFloat longSideLen = resolutionTable[i].height > resolutionTable[i].width ? resolutionTable[i].height : resolutionTable[i].width;
-        CGFloat shortSideLen = resolutionTable[i].height < resolutionTable[i].width ? resolutionTable[i].height : resolutionTable[i].width;
-        if(needSwapWidthAndHeight) resolutionTable[i] = CGSizeMake(shortSideLen, longSideLen);
-        else resolutionTable[i] = CGSizeMake(longSideLen, shortSideLen);
-    }
-    
-    resolutionTable[3] = CGSizeMake(safeAreaWidth, appWindowHeight);
-    resolutionTable[4] = CGSizeMake(appWindowWidth, appWindowHeight);
+    NSInteger externalDisplayMode = [self.externalDisplayModeSelector selectedSegmentIndex];
+    // 调用主界面方法统一填充 resolutionTable
+    [self.mainFrameViewController fillResolutionTable:resolutionTable externalDisplayMode:externalDisplayMode];
 
     [self updateResolutionDisplayLabel];
 }
@@ -330,6 +287,11 @@ BOOL isCustomResolution(CGSize res) {
 
 - (void)viewWillAppear:(BOOL)animated{
     [super viewWillAppear:NO];
+    [self updateParentStackHorizontalConstraints];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(deviceOrientationDidChange:) // handle orientation change since i made portrait mode available
+                                                 name:UIDeviceOrientationDidChangeNotification
+                                               object:nil];
  }
 
 - (void)viewDidAppear:(BOOL)animated{
@@ -340,16 +302,21 @@ BOOL isCustomResolution(CGSize res) {
     DataManager* dataMan = [[DataManager alloc] init];
     TemporarySettings *currentSettings = [dataMan getSettings];
 
-    CGSize currentResolution = CGSizeMake(currentSettings.width.intValue, currentSettings.height.intValue);
-    [self.customResolutionSwitch setOn: isCustomResolution(currentResolution)];
+    //CGSize currentResolution = CGSizeMake(currentSettings.width.intValue, currentSettings.height.intValue);
+    [self.customResolutionSwitch setOn: isCustomResolution(currentSettings.resolutionSelected.intValue)];
     [self.resolutionSelector setEnabled:!self.customResolutionSwitch.isOn];
 }
 
+- (void)viewWillDisappear:(BOOL)animated{
+    [super viewWillDisappear:animated];
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
 
 - (void)viewDidDisappear:(BOOL)animated{
     [super viewDidDisappear:NO];
     [[NSNotificationCenter defaultCenter] postNotificationName:@"SettingsViewClosedNotification" object:self]; // notify other view that settings view just closed
 }
+
 
 - (SettingsMenuMode)getSettingsMenuMode{
     return currentSettingsMenuMode;
@@ -390,13 +357,56 @@ BOOL isCustomResolution(CGSize res) {
     _parentStack.spacing = 0;
     _parentStack.translatesAutoresizingMaskIntoConstraints = NO;
     [self.scrollView addSubview:_parentStack];
+    
     [NSLayoutConstraint activateConstraints:@[
         [_parentStack.topAnchor constraintEqualToAnchor:self.scrollView.contentLayoutGuide.topAnchor constant: currentSettingsMenuMode == AllSettings ? [self getStandardNavBarHeight] : [self getStandardNavBarHeight]+10],
         [_parentStack.bottomAnchor constraintEqualToAnchor:self.scrollView.contentLayoutGuide.bottomAnchor constant:-20],
-        [_parentStack.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor constant: 0], //mark: settingMenuLayout
-        [_parentStack.widthAnchor constraintEqualToAnchor:self.view.widthAnchor constant:-20] // section width adjusted here //mark: settingMenuLayout
     ]];
+
+    [self updateParentStackHorizontalConstraints];
 }
+
+-(void)deviceOrientationDidChange:(NSNotification *)notification {
+    [self updateParentStackHorizontalConstraints];
+}
+
+- (void)updateParentStackHorizontalConstraints{
+    if(![self isIPhone]){
+        [NSLayoutConstraint activateConstraints:@[
+            [_parentStack.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor constant: 0], //mark: settingMenuLayout
+            [_parentStack.widthAnchor constraintEqualToAnchor:self.view.widthAnchor constant:-20] // section width adjusted here
+        ]];
+        return;
+    }
+    
+    UIWindow *keyWindow = [UIApplication sharedApplication].windows.firstObject;
+    
+    if (@available(iOS 13.0, *)) {
+        if(parentStackWidthConstraint && parentStackLeadingConstraint) [NSLayoutConstraint deactivateConstraints:@[parentStackLeadingConstraint, parentStackWidthConstraint]];
+        UIInterfaceOrientation currentOrientation = keyWindow.windowScene.interfaceOrientation;
+        switch (currentOrientation) {
+            case UIInterfaceOrientationLandscapeRight:
+                parentStackLeadingConstraint = [_parentStack.leadingAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.leadingAnchor constant:0];
+                parentStackWidthConstraint = [_parentStack.widthAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.widthAnchor constant:-10];
+                break;
+            default:
+                parentStackLeadingConstraint = [_parentStack.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:10];
+                parentStackWidthConstraint = [_parentStack.widthAnchor constraintEqualToAnchor:self.view.widthAnchor constant:-20];
+                break;
+        }
+        [NSLayoutConstraint activateConstraints:@[parentStackLeadingConstraint, parentStackWidthConstraint]];
+    } else {
+        // Fallback on earlier versions
+    }
+    
+    
+    double delayInSeconds = 0.05;
+    dispatch_time_t popTime = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delayInSeconds * NSEC_PER_SEC));
+    dispatch_after(popTime, dispatch_get_main_queue(), ^{
+        [self hideOverlappedDynamicLabels];
+    });
+}
+
 
 - (UIButton* )findInfoButtonFromStack:(UIStackView* )stack{
     UIButton* button;
@@ -495,7 +505,6 @@ BOOL isCustomResolution(CGSize res) {
             [label.heightAnchor constraintEqualToAnchor:stack.arrangedSubviews[0].heightAnchor],
             [label.widthAnchor constraintEqualToConstant:150],
         ]];
-
     }
 }
 
@@ -508,8 +517,6 @@ BOOL isCustomResolution(CGSize res) {
 }
     
 - (void)layoutSections{
-    
-    
     MenuSectionView *videoSection = [[MenuSectionView alloc] init];
     videoSection.delegate = self;
     videoSection.sectionTitle = [LocalizationHelper localizedStringForKey:@"Video"];
@@ -566,7 +573,9 @@ BOOL isCustomResolution(CGSize res) {
     if (@available(iOS 13.0, *)) {
         [peripheralSection setSectionWithIcon:[UIImage imageNamed:@"cable.connector.video"] andSize:20];
     }
-    [self addSetting:self.externalDisplayModeStack ofId:@"externalDisplayModeStack" withInfoTag:YES withDynamicLabel:NO to:peripheralSection];
+    if (@available(iOS 13.0, *)) {
+        [self addSetting:self.externalDisplayModeStack ofId:@"externalDisplayModeStack" withInfoTag:YES withDynamicLabel:NO to:peripheralSection];
+    }
     [self addSetting:self.localMousePointerModeStack ofId:@"localMousePointerModeStack" withInfoTag:YES withDynamicLabel:NO to:peripheralSection];
     [self addSetting:self.reverseMouseWheelDirectionStack ofId:@"reverseMouseWheelDirectionStack" withInfoTag:NO withDynamicLabel:NO to:peripheralSection];
     [self addSetting:self.citrixX1MouseStack ofId:@"citrixX1MouseStack" withInfoTag:NO withDynamicLabel:NO to:peripheralSection];
@@ -713,8 +722,6 @@ BOOL isCustomResolution(CGSize res) {
         objc_setAssociatedObject(link, @"lastTimestamp", @(link.timestamp), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
 }
-
-
 
 
 - (NSInteger)parentStackIndexForLocation:(CGPoint)location {
@@ -936,6 +943,7 @@ BOOL isCustomResolution(CGSize res) {
     } else {
         [button setTitle:@"info" forState:UIControlStateNormal];
         button.titleLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightBold];
+        button.titleLabel.accessibilityIdentifier = @"infoButton";
     }
     button.accessibilityIdentifier = @"infoButton";
     button.translatesAutoresizingMaskIntoConstraints = NO;
@@ -1283,21 +1291,20 @@ BOOL isCustomResolution(CGSize res) {
     _bitrate = bitrateTable[[self getSliderValueForBitrate:[currentSettings.bitrate intValue]]];
 
     // Get the size of the screen with and without safe area insets
-    UIWindow *window = UIApplication.sharedApplication.windows.firstObject;
-    CGFloat screenScale = window.screen.scale;
-    CGFloat safeAreaWidth = (window.frame.size.width - window.safeAreaInsets.left - window.safeAreaInsets.right) * screenScale;
-    CGFloat fullScreenWidth = window.frame.size.width * screenScale;
-    CGFloat fullScreenHeight = window.frame.size.height * screenScale;
+    // UIWindow *window = UIApplication.sharedApplication.windows.firstObject;
+    // CGFloat screenScale = window.screen.scale;
+    // CGFloat safeAreaWidth = (window.frame.size.width - window.safeAreaInsets.left - window.safeAreaInsets.right) * screenScale;
+    // CGFloat fullScreenWidth = window.frame.size.width * screenScale;
+    // CGFloat fullScreenHeight = window.frame.size.height * screenScale;
 
     [self.resolutionSelector removeSegmentAtIndex:0 animated:NO]; // remove 360p
     [self.resolutionSelector removeSegmentAtIndex:5 animated:NO]; // remove custom segment
+    // iOS12 compatibility:
+    self.resolutionSelector.selectedSegmentIndex = 3;
+    [self.resolutionSelector setNeedsLayout];
 
-    resolutionTable[0] = CGSizeMake(1280, 720);
-    resolutionTable[1] = CGSizeMake(1920, 1080);
-    resolutionTable[2] = CGSizeMake(3840, 2160);
-    resolutionTable[3] = CGSizeMake(safeAreaWidth, fullScreenHeight);
-    resolutionTable[4] = CGSizeMake(fullScreenWidth, fullScreenHeight);
     resolutionTable[5] = CGSizeMake([currentSettings.width integerValue], [currentSettings.height integerValue]); // custom initial value
+    [self updateResolutionTable];
 
 
     NSInteger framerate;
@@ -1342,7 +1349,7 @@ BOOL isCustomResolution(CGSize res) {
         
         // Only enable the 4K option for "recent" devices. We'll judge that by whether
         // they support HEVC decoding (A9 or later).
-        [self.resolutionSelector setEnabled:NO forSegmentAtIndex:3];
+        [self.resolutionSelector setEnabled:NO forSegmentAtIndex:2];
     }
     switch (currentSettings.preferredCodec) {
         case CODEC_PREF_AUTO:
@@ -1396,6 +1403,8 @@ BOOL isCustomResolution(CGSize res) {
         [self.gyroModeSelector setEnabled:false forSegmentAtIndex:1];
         [self.gyroModeSelector setEnabled:false forSegmentAtIndex:3];
     }
+    CMMotionManager *motionManager = [[CMMotionManager alloc] init];
+    [self.gyroModeSelector setEnabled:[motionManager isGyroAvailable] forSegmentAtIndex:2];
     
     [self.emulatedControllerTypeSelector setSelectedSegmentIndex:[self controllerTypeToSegmentIndex:currentSettings.emulatedControllerType.intValue]];
     [self.emulatedControllerTypeSelector addTarget:self action:@selector(emulatedControllerTypeChanged:) forControlEvents:(UIControlEventValueChanged)]; // Update label display when slider is being moved.
@@ -1565,9 +1574,7 @@ BOOL isCustomResolution(CGSize res) {
          }
                                                          
         [self findDynamicLabelFromStack:self.onScreenWidgetStack].text = [self isCustomOswEnabled] ? [LocalizationHelper localizedStringForKey:@"%d finger tap", self->oswLayoutFingers] : @"";
-        //markmark
-        [self handleOswGestureChange];
-                                                     }];
+        [self handleOswGestureChange];}];
     
     [alertController addAction:cancelAction];
     [alertController addAction:okAction];
@@ -2054,7 +2061,16 @@ BOOL isCustomResolution(CGSize res) {
                 label.layer.filters = nil;
                 label.textColor = [ThemeManager textColor];
             } else {
-                // Fallback on earlier versions
+                UIView *view = label;
+                bool isPartOfSelector = false;
+                while (view) {
+                    if ([view isKindOfClass:[UISegmentedControl class]]) {
+                        isPartOfSelector = true;
+                        break;
+                    }
+                    view = view.superview;
+                }
+                if(!isPartOfSelector) label.textColor = [UIColor whiteColor];
             }
         }
         [self updateThemeForLabels:subview];
@@ -2068,7 +2084,7 @@ BOOL isCustomResolution(CGSize res) {
             if (@available(iOS 13.0, *)) {
                 selector.selectedSegmentTintColor = [ThemeManager appSecondaryColor];
             } else {
-                // Fallback on earlier versions
+                selector.tintColor = [ThemeManager appSecondaryColor];
             }
         }
         [self updateThemeForSelectors:subview];
@@ -2089,18 +2105,20 @@ BOOL isCustomResolution(CGSize res) {
 
 - (void)updateTheme{
     self.view.backgroundColor = [ThemeManager appBackgroundColor];
-    if (@available(iOS 13.0, *)) {
-        [self updateThemeForLabels:self.view];
-        [self updateThemeForSelectors:self.view];
-        [self updateThemeForSliders:self.view];
-    }
+    [self updateThemeForLabels:self.view];
+    [self updateThemeForSelectors:self.view];
+    [self updateThemeForSliders:self.view];
 }
 
 - (void) saveSettings {
     DataManager* dataMan = [[DataManager alloc] init];
+    Settings* currentSettings = [dataMan retrieveSettings];
+    
+    NSInteger height = self.mainFrameViewController.settingsExpandedInStreamView ? currentSettings.height.intValue : [self getChosenStreamHeight];
+    NSInteger width = self.mainFrameViewController.settingsExpandedInStreamView ? currentSettings.width.intValue : [self getChosenStreamWidth];
+    
     NSInteger framerate = [self getChosenFrameRate];
-    NSInteger height = [self getChosenStreamHeight];
-    NSInteger width = [self getChosenStreamWidth];
+
     NSInteger audioConfig = [@[@2, @6, @8][[self.audioConfigSelector selectedSegmentIndex]] integerValue];
     NSInteger onscreenControls = [self.onScreenWidgetSelector selectedSegmentIndex];
     NSInteger keyboardToggleFingers = self.softKeyboardGestureSelector.selectedSegmentIndex == 3 ? 20 : self.softKeyboardGestureSelector.selectedSegmentIndex+3;
@@ -2137,6 +2155,9 @@ BOOL isCustomResolution(CGSize res) {
     BOOL enableHdr = self.hdrSwitch.isOn;
     BOOL unlockDisplayOrientation = [self.unlockDisplayOrientationSelector selectedSegmentIndex] == 1;
     NSInteger resolutionSelected = [self.resolutionSelector selectedSegmentIndex];
+    if (self.customResolutionSwitch.isOn) {
+        resolutionSelected = RESOLUTION_TABLE_CUSTOM_INDEX;
+    }
     NSInteger externalDisplayMode = [self.externalDisplayModeSelector selectedSegmentIndex];
     NSInteger localMousePointerMode = [self.localMousePointerModeSelector selectedSegmentIndex];
     NSInteger backgroundSessionTimer = self.backgroundSessionTimerSlider.value == self.backgroundSessionTimerSlider.maximumValue ? (uint32_t) INT16_MAX : (uint32_t)self.backgroundSessionTimerSlider.value;
