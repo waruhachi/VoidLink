@@ -33,6 +33,8 @@
 @property (nonatomic, retain) NSNumber * touchMoveEventInterval;
 @property (nonatomic, retain) NSNumber * touchPointerVelocityFactor;
 @property (nonatomic, retain) NSNumber * gyroSensitivity;
+@property (nonatomic, retain) NSNumber * localVolume;
+@property (nonatomic, retain) NSNumber * micVolume;
 @property (nonatomic, retain) NSNumber * emulatedControllerType;
 @property (nonatomic, retain) NSNumber * mousePointerVelocityFactor;
 @property (nonatomic, retain) NSNumber * pointerVelocityModeDivider;
@@ -51,10 +53,12 @@
 @property (nonatomic) BOOL enablePIP;
 @property (nonatomic) BOOL reverseMouseWheelDirection;
 @property (nonatomic, retain) NSNumber * asyncNativeTouchPriority;
-@property (nonatomic) BOOL useFramePacing;
 @property (nonatomic) BOOL multiController;
+@property (nonatomic) BOOL buttonVisualFeedback;
 @property (nonatomic) BOOL swapABXYButtons;
 @property (nonatomic) BOOL playAudioOnPC;
+@property (nonatomic) BOOL redirectMic;
+@property (nonatomic) BOOL useBuiltinMic;
 @property (nonatomic) BOOL optimizeGames;
 @property (nonatomic) BOOL enableHdr;
 @property (nonatomic) BOOL btMouseSupport;
@@ -65,6 +69,13 @@
 @property (nonatomic) BOOL liftStreamViewForKeyboard;
 @property (nonatomic) BOOL showKeyboardToolbar;
 @property (nonatomic) BOOL unlockDisplayOrientation;
+@property (nonatomic) BOOL enableGraphs;
+@property (nonatomic, retain) NSNumber * frameQueueSize;
+@property (nonatomic, retain) NSNumber * graphOpacity;
+@property (nonatomic, retain) NSNumber * renderingBackend;
+@property (nonatomic) BOOL sendDummyEvent;
+@property (nonatomic) BOOL rememberFoldState;
+@property (nonatomic, retain) NSNumber * framePacingMode;
 
 - (id) initFromSettings:(Settings*)settings;
 

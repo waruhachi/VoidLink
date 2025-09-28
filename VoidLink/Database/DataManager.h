@@ -25,6 +25,7 @@ typedef NS_ENUM(NSInteger, TouchMode) {
     RelativeTouch,
     NativeTouch,
     AbsoluteTouch,
+    TouchDisabled,
     NativeTouchOnly
 };
 
@@ -42,11 +43,21 @@ typedef NS_ENUM(NSInteger, GyroMode) {
     AlwaysController
 };
 
+typedef NS_ENUM(NSInteger, FramePacingMode) {
+    FramePacingModeOff,
+    FramePacingModeLegacy,
+    FramePacingModeQueue
+};
 
 typedef NS_ENUM(NSInteger, SettingsMenuMode) {
     AllSettings,
     FavoriteSettings,
     RemoveSettingItem,
+};
+
+typedef NS_ENUM(NSInteger, WidgetSizeTransition) {
+    keepWidgetSize,
+    transitionWithOrientation,
 };
 
 - (void) saveSettingsWithBitrate:(NSInteger)bitrate
@@ -65,30 +76,41 @@ typedef NS_ENUM(NSInteger, SettingsMenuMode) {
       touchPointerVelocityFactor:(CGFloat)touchPointerVelocityFactor
       mousePointerVelocityFactor:(CGFloat)mousePointerVelocityFactor
                  gyroSensitivity:(CGFloat)gyroSensitivity
+                     localVolume:(CGFloat)localVolume
+                       micVolume:(CGFloat)micVolume
           touchMoveEventInterval:(NSInteger)touchMoveEventInterval
       reverseMouseWheelDirection:(BOOL)reverseMouseWheelDirection
-                  asyncNativeTouchPriority:(NSInteger)asyncNativeTouchPriority
+        asyncNativeTouchPriority:(NSInteger)asyncNativeTouchPriority
        liftStreamViewForKeyboard:(BOOL)liftStreamViewForKeyboard
              showKeyboardToolbar:(BOOL)showKeyboardToolbar
                    optimizeGames:(BOOL)optimizeGames
                  multiController:(BOOL)multiController
+            buttonVisualFeedback:(BOOL)buttonVisualFeedback
                  swapABXYButtons:(BOOL)swapABXYButtons
                        audioOnPC:(BOOL)audioOnPC
+                     redirectMic:(BOOL)redirectMic
+                   useBuiltinMic:(BOOL)useBuiltinMic
                   preferredCodec:(uint32_t)preferredCodec
-                       enableYUV444:(BOOL)enableYUV444
+                    enableYUV444:(BOOL)enableYUV444
                        enablePIP:(BOOL)enablePIP
-                  useFramePacing:(BOOL)useFramePacing
                        enableHdr:(BOOL)enableHdr
                   btMouseSupport:(BOOL)btMouseSupport
                // absoluteTouchMode:(BOOL)absoluteTouchMode
                        touchMode:(NSInteger)touchMode
                statsOverlayLevel:(NSInteger)statsOverlayLevel
-                    statsOverlayEnabled:(BOOL)statsOverlayEnabled
-                   unlockDisplayOrientation:(BOOL)unlockDisplayOrientation
+             statsOverlayEnabled:(BOOL)statsOverlayEnabled
+        unlockDisplayOrientation:(BOOL)unlockDisplayOrientation
               resolutionSelected:(NSInteger)resolutionSelected
              externalDisplayMode:(NSInteger)externalDisplayMode
            localMousePointerMode:(NSInteger)localMousePointerMode
-           backgroundSessionTimer:(NSInteger)backgroundSessionTimer;
+                  frameQueueSize:(NSInteger)frameQueueSize
+                    enableGraphs:(BOOL)enableGraphs
+                    graphOpacity:(NSInteger)graphOpacity
+                renderingBackend:(NSInteger)renderingBackend
+                 framePacingMode:(NSInteger)framePacingMode
+                  sendDummyEvent:(BOOL)sendDummyEvent
+               rememberFoldState:(BOOL)rememberFoldState
+          backgroundSessionTimer:(NSInteger)backgroundSessionTimer;
 
 - (NSArray*) getHosts;
 - (void) updateHost:(TemporaryHost*)host;

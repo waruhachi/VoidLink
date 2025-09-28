@@ -100,13 +100,19 @@ static const CGFloat cellOffsetY = 20;
     return self;
 }
 
+- (void)updateTheme {
+    self.collectionView.backgroundColor = [ThemeManager appBackgroundColor];
+    for (HostCell *cell in [self.collectionView visibleCells]) {
+        [cell.cardView updateTheme];
+    }
+}
+
 - (void)viewDidLoad {
     [super viewDidLoad];
     [self.collectionView registerClass:[HostCell class] forCellWithReuseIdentifier:@"HostCell"];
     self.collectionView.alwaysBounceVertical = NO;
     self.collectionView.showsVerticalScrollIndicator = NO;
-    self.collectionView.backgroundColor = [ThemeManager appBackgroundColor];
-
+    [self updateTheme];
 }
 
 
@@ -175,9 +181,10 @@ static const CGFloat cellOffsetY = 20;
         _collectionViewHeightConstraint.constant = contentHeight;
     }
     
-    if([self numberOfRowsInCollectionView]<=2 && !contentExceedsView) layout.sectionInset = UIEdgeInsetsMake(50, _horizontalPadding, 0, _horizontalPadding);
-    if([self numberOfRowsInCollectionView]>2 && !contentExceedsView) layout.sectionInset = UIEdgeInsetsMake(25, _horizontalPadding, 0, _horizontalPadding);
-    if(contentExceedsView) layout.sectionInset = UIEdgeInsetsMake(7, _horizontalPadding, 0, _horizontalPadding);
+    if([self numberOfRowsInCollectionView] == 1) layout.sectionInset = UIEdgeInsetsMake(50, _horizontalPadding, 0, _horizontalPadding);
+    else if([self numberOfRowsInCollectionView] == 2) layout.sectionInset = UIEdgeInsetsMake(17, _horizontalPadding, 0, _horizontalPadding);
+    else layout.sectionInset = UIEdgeInsetsMake(10, _horizontalPadding, 0, _horizontalPadding);
+    //if(contentExceedsView) layout.sectionInset = UIEdgeInsetsMake(7, _horizontalPadding, 0, _horizontalPadding);
 }
 
 #pragma mark - UICollectionView DataSource
