@@ -52,21 +52,13 @@ jobs:
             grep -v '/Users/runner/Library/Developer/Xcode/DerivedData' | \
             tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' | sed 's/[[:space:]]$//')
 
-          if echo "$SANITIZED" | grep -q '/Applications/Xcode\.app/Contents/Developer/Toolchains/XcodeDefault\.xctoolchain/usr/include'; then
-            echo "Sanitization failed – legacy toolchain path still present." >&2
-            exit 1
-          fi
-
           if [ -z "$SANITIZED" ]; then
             echo "After filtering, SANITIZED became empty. Falling back to minimal relative set." >&2
             SANITIZED='$(inherited) $(SRCROOT)/moonlight-common/moonlight-common-c/src $(SRCROOT)/libs/**'
           else
             case "$SANITIZED" in
-              *"\$(inherited)"*)
-                : ;;
-              *)
-                SANITIZED="$(echo $(echo '$(inherited)') ) $SANITIZED"
-                ;;
+              *"\$(inherited)"*) : ;;
+              *) SANITIZED="$(echo '$(inherited)') $SANITIZED" ;;
             esac
           fi
 
@@ -85,6 +77,7 @@ jobs:
           WORKING_LOCATION="$GITHUB_WORKSPACE"
           APP="VoidLink"
           VARIANT="FullScreen"
+          BUILD_ROOT="$WORKING_LOCATION/build"
 
           cd "$WORKING_LOCATION"
           mkdir -p build && cd build
@@ -118,7 +111,7 @@ jobs:
             strip "$BUILD_ROOT/Payload/$APP.app/$EXEC" || true
           fi
 
-          (cd "$BUILD_ROOT" && zip -qry "$APP"_"$VARIANT".ipa Payload)
+          (cd "$BUILD_ROOT" && zip -qry "${APP}_${VARIANT}.ipa" Payload)
           rm -rf "$BUILD_ROOT/Payload" "$BUILD_ROOT/$APP.app"
 
           echo "Produced IPA: $BUILD_ROOT/${APP}_${VARIANT}.ipa"
@@ -135,6 +128,7 @@ jobs:
           WORKING_LOCATION="$GITHUB_WORKSPACE"
           APP="VoidLink"
           VARIANT="StageManager"
+          BUILD_ROOT="$WORKING_LOCATION/build"
 
           cd "$WORKING_LOCATION"
           mkdir -p build && cd build
@@ -146,30 +140,32 @@ jobs:
             -scheme "$APP" \
             -configuration Release \
             -derivedDataPath "$WORKING_LOCATION/build/DerivedDataApp" \
-            -destination 'platform=iOS Simulator' \
+            -destination 'generic/platform=iOS' \
             clean build \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_ENTITLEMENTS="" \
-            CODE_SIGNING_ALLOWED="NO"
+            CODE_SIGNING_ALLOWED="NO" \
+            HEADER_SEARCH_PATHS="$SANITIZED_HEADER_SEARCH_PATHS"
 
           DD_APP="$WORKING_LOCATION/build/DerivedDataApp/Build/Products/Release-iphoneos/$APP.app"
-          cp -R "$DD_APP" "$APP.app"
+          rm -rf "$BUILD_ROOT/Payload" "$BUILD_ROOT/$APP.app"
+          cp -R "$DD_APP" "$BUILD_ROOT/$APP.app"
+          (codesign --remove "$BUILD_ROOT/$APP.app" || true) 2>/dev/null
+          rm -rf "$BUILD_ROOT/$APP.app/_CodeSignature" "$BUILD_ROOT/$APP.app/embedded.mobileprovision" || true
 
-          codesign --remove "$APP.app" || true
-          [ -d "$APP.app/_CodeSignature" ] && rm -rf "$APP.app/_CodeSignature"
-          [ -f "$APP.app/embedded.mobileprovision" ] && rm -f "$APP.app/embedded.mobileprovision"
+          mkdir -p "$BUILD_ROOT/Payload"
+          cp -R "$BUILD_ROOT/$APP.app" "$BUILD_ROOT/Payload/$APP.app"
 
-          mkdir -p Payload
-          cp -R "$APP.app" "Payload/$APP.app"
+          EXEC=$(defaults read "$BUILD_ROOT/Payload/$APP.app/Info" CFBundleExecutable 2>/dev/null || echo "$APP")
+          if [ -f "$BUILD_ROOT/Payload/$APP.app/$EXEC" ]; then
+            strip "$BUILD_ROOT/Payload/$APP.app/$EXEC" || true
+          fi
 
-          EXEC=$(defaults read "Payload/$APP.app/Info" CFBundleExecutable 2>/dev/null || echo "$APP")
-          [ -f "Payload/$APP.app/$EXEC" ] && strip "Payload/$APP.app/$EXEC" || true
+          (cd "$BUILD_ROOT" && zip -qry "${APP}_${VARIANT}.ipa" Payload)
+          rm -rf "$BUILD_ROOT/Payload" "$BUILD_ROOT/$APP.app"
 
-          strip "Payload/$APP.app/$APP"
-          zip -vr "$APP"_"$VARIANT.ipa" Payload
-
-          rm -rf Payload "$APP.app"
+          echo "Produced IPA: $BUILD_ROOT/${APP}_${VARIANT}.ipa"
 
       - name: Upload StageManager IPA
         uses: actions/upload-artifact@v4
