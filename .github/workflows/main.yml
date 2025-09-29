@@ -48,7 +48,7 @@ jobs:
 
           SANITIZED=$(printf '%s\n' "$RAW_LINE" | tr ' ' '\n' | \
             grep -v '^$' | \
-            grep -v '/Applications/Xcode\.app/Contents/Developer/Toolchains/XcodeDefault\.xctoolchain/usr/include' | \
+            grep -v '/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include' | \
             grep -v '/Users/runner/Library/Developer/Xcode/DerivedData' | \
             tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' | sed 's/[[:space:]]$//')
 
