@@ -42,6 +42,9 @@
 @property (nonatomic, retain) NSNumber * resolutionSelected;
 @property (nonatomic, retain) NSNumber * externalDisplayMode;
 @property (nonatomic, retain) NSNumber * localMousePointerMode;
+@property (nonatomic, retain) NSNumber * gyroBiasX;
+@property (nonatomic, retain) NSNumber * gyroBiasY;
+@property (nonatomic, retain) NSNumber * gyroBiasZ;
 @property (nonatomic, retain) NSNumber * backgroundSessionTimer;
 @property (nonatomic) enum {
     CODEC_PREF_AUTO,
@@ -75,6 +78,10 @@
 @property (nonatomic, retain) NSNumber * renderingBackend;
 @property (nonatomic) BOOL sendDummyEvent;
 @property (nonatomic) BOOL rememberFoldState;
+@property (nonatomic, retain) NSNumber * singleTapSensitivity;
+@property (nonatomic, retain) NSNumber * hapticEngine;
+@property (nonatomic, retain) NSNumber * appTheme;
+@property (nonatomic, retain) NSNumber * edgeSlidingSensitivity;
 @property (nonatomic, retain) NSNumber * framePacingMode;
 
 - (id) initFromSettings:(Settings*)settings;

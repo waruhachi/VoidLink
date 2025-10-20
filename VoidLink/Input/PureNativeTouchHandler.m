@@ -19,7 +19,6 @@
     TemporarySettings* currentSettings;
     bool activateCoordSelector;
     CGFloat pointerVelocityDividerLocationByPoints;
-    uint16_t touchMoveEventIntervalUs;
     
     bool asyncNativeTouch;
     unsigned int touchDownQos;
@@ -39,9 +38,11 @@
 
     CGFloat slideGestureVerticalThreshold;
     CGFloat screenWidthWithThreshold;
-    CGFloat EDGE_TOLERANCE;
+    CGFloat _edgeTolerance;
     
     CGRect streamViewBounds;
+    
+    int64_t moveEventIntervalNSec;
 }
 
 - (id)initWithView:(StreamView*)view andSettings:(TemporarySettings*)settings{
@@ -49,7 +50,7 @@
     self->streamView = view;
     self->currentSettings = settings;
     self->activateCoordSelector = currentSettings.pointerVelocityModeDivider.floatValue != 1.0;
-    self->touchMoveEventIntervalUs = currentSettings.touchMoveEventInterval.intValue;
+    self->moveEventIntervalNSec =  (int64_t)(currentSettings.touchMoveEventInterval.intValue * 1000);;
     self->streamViewBounds = view.bounds;
     
     self->pointerIdDict = [NSMutableDictionary dictionary];
@@ -81,12 +82,11 @@
         default: break;
     }
     
-    
     self->pointerObjDict = [NSMutableDictionary dictionary];
     
-    EDGE_TOLERANCE = 10.0;
+    _edgeTolerance = settings.edgeSlidingSensitivity.floatValue;
     slideGestureVerticalThreshold = CGRectGetHeight([[UIScreen mainScreen] bounds]) * 0.4;
-    screenWidthWithThreshold = CGRectGetWidth([[UIScreen mainScreen] bounds]) - EDGE_TOLERANCE;
+    screenWidthWithThreshold = CGRectGetWidth([[UIScreen mainScreen] bounds]) - _edgeTolerance;
 
     self->pointerVelocityDividerLocationByPoints = self->streamView.bounds.size.width * settings.pointerVelocityModeDivider.floatValue;
     
@@ -163,7 +163,7 @@
     
     //check if touch point is spawned on the left or right upper half screen edges, event to remote PC. this is for better handling in-stream slide gesture
     CGPoint initialPoint = [touch locationInView:self->streamView];
-    if(initialPoint.y < slideGestureVerticalThreshold && (initialPoint.x < EDGE_TOLERANCE || initialPoint.x > screenWidthWithThreshold)) {
+    if(initialPoint.y < slideGestureVerticalThreshold && (initialPoint.x < _edgeTolerance || initialPoint.x > screenWidthWithThreshold)) {
         [blacklistedTouches addObject:touchAddrObj];
     }
 }
@@ -228,46 +228,24 @@
 }
 
 - (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event {
-    if (asyncNativeTouch) dispatch_async(dispatch_get_global_queue(touchMoveQos, 0), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, moveEventIntervalNSec), dispatch_get_main_queue(), ^{
         for (UITouch* touch in touches){
-            // continue to the next loop if current touch is already captured by OSC. works only in regular native touch
             if(self->activateCoordSelector) [self updatePointerObjInDict:touch];
             [self sendTouchEvent:touch withTouchtype:LI_TOUCH_EVENT_MOVE];
-            [[self getPointerObjFromDict:touch] doesNeedResetCoords]; // execute the judging of doesReachBoundary for current pointer instance. (happens after the event is sent to Sunshine service)
-            usleep(self->touchMoveEventIntervalUs);
+            [[self getPointerObjFromDict:touch] doesNeedResetCoords];
         }
     });
-    else {
-        for (UITouch* touch in touches){
-            // continue to the next loop if current touch is already captured by OSC. works only in regular native touch
-            if(self->activateCoordSelector) [self updatePointerObjInDict:touch];
-            [self sendTouchEvent:touch withTouchtype:LI_TOUCH_EVENT_MOVE];
-            [[self getPointerObjFromDict:touch] doesNeedResetCoords]; // execute the judging of doesReachBoundary for current pointer instance. (happens after the event is sent to Sunshine service)
-            // usleep(self->touchMoveEventIntervalUs);
-        }
-    }
 }
 
-
 - (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event {
-    if(asyncNativeTouch) dispatch_async(dispatch_get_global_queue(touchEndQos, 0), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, moveEventIntervalNSec), dispatch_get_main_queue(), ^{
         for (UITouch* touch in touches){
-            // continue to the next loop if current touch is already captured by OSC. works only in regular native touch
             [self sendTouchEvent:touch withTouchtype:LI_TOUCH_EVENT_UP]; //send touch event before remove pointerId
             [self removePointerId:touch]; //then remove pointerId
             if(self->activateCoordSelector) [self removePointerObjFromDict:touch];
             [self->blacklistedTouches removeObject:@((uintptr_t)touch)];
         }
-        //if(self->touchPointSpawnedAtUpperScreenEdge && [[event allTouches] count] == [touches count])
     });
-    else{
-        for (UITouch* touch in touches){
-            // continue to the next loop if current touch is already captured by OSC. works only in regular native touch
-            [self sendTouchEvent:touch withTouchtype:LI_TOUCH_EVENT_UP]; //send touch event before remove pointerId
-            [self removePointerId:touch]; //then remove pointerId
-            if(self->activateCoordSelector) [self removePointerObjFromDict:touch];
-        }
-    }
 }
 
 - (void)touchesCancelled:(NSSet *)touches withEvent:(UIEvent *)event {

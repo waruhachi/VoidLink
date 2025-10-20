@@ -313,6 +313,66 @@
         }
       }
     },
+    "6GU-ZN-w6X.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Theme\"; ObjectID = \"6GU-ZN-w6X\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Theme"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "主题"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "主題"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "主題"
+          }
+        }
+      }
+    },
+    "6gY-8I-NWq.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Map Gyro to\"; ObjectID = \"6gY-8I-NWq\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Map Gyro to"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "陀螺仪映射为"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "陀螺儀映射為"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "陀螺儀映射為"
+          }
+        }
+      }
+    },
     "6w5-Md-NpV.text" : {
       "comment" : "Class = \"UILabel\"; text = \"Preferred Codec\"; ObjectID = \"6w5-Md-NpV\";",
       "extractionState" : "extracted_with_value",
@@ -793,6 +853,36 @@
         }
       }
     },
+    "aGg-ET-e9F.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Edge Trigger Sensitivity\"; ObjectID = \"aGg-ET-e9F\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Edge Trigger Sensitivity"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "边缘触发灵敏度"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "邊緣觸發靈敏度"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "邊緣觸發靈敏度"
+          }
+        }
+      }
+    },
     "Aiv-r8-9k2.text" : {
       "comment" : "Class = \"UILabel\"; text = \"Frame Rate\"; ObjectID = \"Aiv-r8-9k2\";",
       "extractionState" : "extracted_with_value",
@@ -854,13 +944,43 @@
       }
     },
     "And-W9-9NR.text" : {
-      "comment" : "Class = \"UILabel\"; text = \"Auto tap: 100ms\"; ObjectID = \"And-W9-9NR\";",
+      "comment" : "Class = \"UILabel\"; text = \"Auto tap\"; ObjectID = \"And-W9-9NR\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Auto tap: 100ms"
+            "value" : "Auto tap"
+          }
+        }
+      }
+    },
+    "aol-mw-Kn1.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Yaw Sensitivity\"; ObjectID = \"aol-mw-Kn1\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Yaw Sensitivity"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "偏航灵敏度"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "偏航靈敏度"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "偏航靈敏度"
           }
         }
       }
@@ -1334,13 +1454,13 @@
       }
     },
     "cKS-fy-Zpg.segmentTitles[0]" : {
-      "comment" : "Class = \"UISegmentedControl\"; cKS-fy-Zpg.segmentTitles[0] = \"slide to toggle\"; ObjectID = \"cKS-fy-Zpg\";",
+      "comment" : "Class = \"UISegmentedControl\"; cKS-fy-Zpg.segmentTitles[0] = \"slide-toggle\"; ObjectID = \"cKS-fy-Zpg\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "slide to toggle"
+            "value" : "slide-toggle"
           }
         },
         "zh-Hans" : {
@@ -1364,30 +1484,30 @@
       }
     },
     "cKS-fy-Zpg.segmentTitles[1]" : {
-      "comment" : "Class = \"UISegmentedControl\"; cKS-fy-Zpg.segmentTitles[1] = \"slide & hold\"; ObjectID = \"cKS-fy-Zpg\";",
+      "comment" : "Class = \"UISegmentedControl\"; cKS-fy-Zpg.segmentTitles[1] = \"slide-hold\"; ObjectID = \"cKS-fy-Zpg\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "slide & hold"
+            "value" : "slide-hold"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "translated",
+            "state" : "needs_review",
             "value" : "滑动时按下"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
-            "state" : "translated",
+            "state" : "needs_review",
             "value" : "滑動時按下"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
-            "state" : "translated",
+            "state" : "needs_review",
             "value" : "滑動時按下"
           }
         }
@@ -1449,6 +1569,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "點按切換"
+          }
+        }
+      }
+    },
+    "cKS-fy-Zpg.segmentTitles[4]" : {
+      "comment" : "Class = \"UISegmentedControl\"; cKS-fy-Zpg.segmentTitles[4] = \"movable\"; ObjectID = \"cKS-fy-Zpg\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "movable"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可移动"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可移動"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可移動"
           }
         }
       }
@@ -1627,6 +1777,36 @@
         }
       }
     },
+    "EFR-Ee-KiK.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Roll → Left Stick\"; ObjectID = \"EFR-Ee-KiK\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Roll → Left Stick"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "滚转→左摇杆"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "滾轉→左搖桿"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "滾轉→左搖桿"
+          }
+        }
+      }
+    },
     "egA-7n-Dpe.text" : {
       "comment" : "Class = \"UILabel\"; text = \"Touch Pointer Velocity\"; ObjectID = \"egA-7n-Dpe\";",
       "extractionState" : "extracted_with_value",
@@ -1747,6 +1927,36 @@
         }
       }
     },
+    "fq3-ie-8by.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Pitch factor\"; ObjectID = \"fq3-ie-8by\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Pitch factor"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "俯仰系数"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "俯仰係數"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "俯仰係數"
+          }
+        }
+      }
+    },
     "FwK-oG-vuz.text" : {
       "comment" : "Class = \"UILabel\"; text = \"Physical Mouse Wheel Scroll\"; ObjectID = \"FwK-oG-vuz\";",
       "extractionState" : "extracted_with_value",
@@ -1803,6 +2013,96 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "按鍵視覺回饋"
+          }
+        }
+      }
+    },
+    "gTZ-RS-VIl.segmentTitles[0]" : {
+      "comment" : "Class = \"UISegmentedControl\"; gTZ-RS-VIl.segmentTitles[0] = \"Mouse\"; ObjectID = \"gTZ-RS-VIl\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Mouse"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "鼠标"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "滑鼠"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "滑鼠"
+          }
+        }
+      }
+    },
+    "gTZ-RS-VIl.segmentTitles[1]" : {
+      "comment" : "Class = \"UISegmentedControl\"; gTZ-RS-VIl.segmentTitles[1] = \"Controller Stick\"; ObjectID = \"gTZ-RS-VIl\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Controller Stick"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手柄摇杆"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手把搖桿"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手把搖桿"
+          }
+        }
+      }
+    },
+    "gTZ-RS-VIl.segmentTitles[2]" : {
+      "comment" : "Class = \"UISegmentedControl\"; gTZ-RS-VIl.segmentTitles[2] = \"Drift Correction\"; ObjectID = \"gTZ-RS-VIl\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Drift Correction"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "漂移修正"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "漂移修正"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "漂移修正"
           }
         }
       }
@@ -2047,6 +2347,36 @@
         }
       }
     },
+    "HqA-an-KEe.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Minimum Stick Offset\"; ObjectID = \"HqA-an-KEe\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Minimum Stick Offset"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "摇杆输出最小偏移量"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "摇杆输出最小偏移量"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "摇杆输出最小偏移量"
+          }
+        }
+      }
+    },
     "iel-xl-xd9.text" : {
       "comment" : "Class = \"UILabel\"; text = \"Profile:\"; ObjectID = \"iel-xl-xd9\";",
       "extractionState" : "extracted_with_value",
@@ -2085,6 +2415,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "串流中開啟設定選單"
+          }
+        }
+      }
+    },
+    "iZc-Xt-NaK.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Yaw factor\"; ObjectID = \"iZc-Xt-NaK\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Yaw factor"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "偏航系数"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "偏航係數"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "偏航係數"
           }
         }
       }
@@ -2259,6 +2619,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "同時映射"
+          }
+        }
+      }
+    },
+    "jcj-D4-VnY.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Pitch Sensitivity\"; ObjectID = \"jcj-D4-VnY\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Pitch Sensitivity"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "俯仰灵敏度"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "俯仰靈敏度"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "俯仰靈敏度"
           }
         }
       }
@@ -2875,6 +3265,126 @@
         }
       }
     },
+    "MzN-ZR-qyM.segmentTitles[0]" : {
+      "comment" : "Class = \"UISegmentedControl\"; MzN-ZR-qyM.segmentTitles[0] = \"Auto\"; ObjectID = \"MzN-ZR-qyM\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Auto"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自动"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自動"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自動"
+          }
+        }
+      }
+    },
+    "MzN-ZR-qyM.segmentTitles[1]" : {
+      "comment" : "Class = \"UISegmentedControl\"; MzN-ZR-qyM.segmentTitles[1] = \"Built-in\"; ObjectID = \"MzN-ZR-qyM\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Built-in"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "内置"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "内建"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "内建"
+          }
+        }
+      }
+    },
+    "MzN-ZR-qyM.segmentTitles[2]" : {
+      "comment" : "Class = \"UISegmentedControl\"; MzN-ZR-qyM.segmentTitles[2] = \"L/R Swapped\"; ObjectID = \"MzN-ZR-qyM\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "L/R Swapped"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "左右交换"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "左右交換"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "左右交換"
+          }
+        }
+      }
+    },
+    "MzN-ZR-qyM.segmentTitles[3]" : {
+      "comment" : "Class = \"UISegmentedControl\"; MzN-ZR-qyM.segmentTitles[3] = \"Disabled\"; ObjectID = \"MzN-ZR-qyM\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Disabled"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关闭"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "關閉"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "關閉"
+          }
+        }
+      }
+    },
     "nh6-cn-z23.text" : {
       "comment" : "Class = \"UILabel\"; text = \"Toggle Local Soft Keyboard\"; ObjectID = \"nh6-cn-z23\";",
       "extractionState" : "extracted_with_value",
@@ -3110,13 +3620,13 @@
       }
     },
     "pMN-6T-aYE.text" : {
-      "comment" : "Class = \"UILabel\"; text = \"Gesture Slide Distance\"; ObjectID = \"pMN-6T-aYE\";",
+      "comment" : "Class = \"UILabel\"; text = \"Gesture Sliding Distance\"; ObjectID = \"pMN-6T-aYE\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Gesture Slide Distance"
+            "value" : "Gesture Sliding Distance"
           }
         },
         "zh-Hans" : {
@@ -3272,31 +3782,31 @@
       }
     },
     "qNQ-fB-jhY.text" : {
-      "comment" : "Class = \"UILabel\"; text = \"Trigger mode\"; ObjectID = \"qNQ-fB-jhY\";",
+      "comment" : "Class = \"UILabel\"; text = \"Button mode\"; ObjectID = \"qNQ-fB-jhY\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Trigger mode"
+            "value" : "Button mode"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "触发模式"
+            "value" : "按键模式"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "觸發模式"
+            "value" : "按鍵模式"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "觸發模式"
+            "value" : "按鍵模式"
           }
         }
       }
@@ -3595,6 +4105,36 @@
         }
       }
     },
+    "SuN-S2-8hj.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Single Tap Sensitivity\"; ObjectID = \"SuN-S2-8hj\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Single Tap Sensitivity"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "单击灵敏度"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "單擊靈敏度"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "單擊靈敏度"
+          }
+        }
+      }
+    },
     "t7a-18-5wz.text" : {
       "comment" : "Class = \"UILabel\"; text = \"Performance Graphs  \"; ObjectID = \"t7a-18-5wz\";",
       "extractionState" : "extracted_with_value",
@@ -3675,6 +4215,36 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Tap any widget to load configuration (per widget)\n"
+          }
+        }
+      }
+    },
+    "u9Q-wm-UBm.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Roll Sensitivity\"; ObjectID = \"u9Q-wm-UBm\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Roll Sensitivity"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "滚转灵敏度"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "滾轉靈敏度"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "滾轉靈敏度"
           }
         }
       }
@@ -3781,6 +4351,96 @@
         }
       }
     },
+    "wi6-L4-KwS.segmentTitles[0]" : {
+      "comment" : "Class = \"UISegmentedControl\"; wi6-L4-KwS.segmentTitles[0] = \"System\"; ObjectID = \"wi6-L4-KwS\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "System"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跟随系统"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跟隨系統"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跟隨系統"
+          }
+        }
+      }
+    },
+    "wi6-L4-KwS.segmentTitles[1]" : {
+      "comment" : "Class = \"UISegmentedControl\"; wi6-L4-KwS.segmentTitles[1] = \"Light\"; ObjectID = \"wi6-L4-KwS\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Light"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "浅色"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "淺色"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "淺色"
+          }
+        }
+      }
+    },
+    "wi6-L4-KwS.segmentTitles[2]" : {
+      "comment" : "Class = \"UISegmentedControl\"; wi6-L4-KwS.segmentTitles[2] = \"Dark\"; ObjectID = \"wi6-L4-KwS\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Dark"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "深色"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "深色"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "深色"
+          }
+        }
+      }
+    },
     "xfv-K0-1CO.text" : {
       "comment" : "Class = \"UILabel\"; text = \"Tap any widget to load configuration (per widget)\\n\"; ObjectID = \"xfv-K0-1CO\";",
       "extractionState" : "extracted_with_value",
@@ -3811,6 +4471,36 @@
         }
       }
     },
+    "XU0-qu-2p4.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Yaw&Pitch → Right Stick\"; ObjectID = \"XU0-qu-2p4\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Yaw&Pitch → Right Stick"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "偏航/俯仰→右摇杆"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "偏航/俯仰→右搖桿"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "偏航/俯仰→右搖桿"
+          }
+        }
+      }
+    },
     "Ylu-hT-Cuz.text" : {
       "comment" : "Class = \"UILabel\"; text = \"The recommended value is 2. 1 frame provides the lowest latency, but may require an Ethernet connection.\"; ObjectID = \"Ylu-hT-Cuz\";",
       "extractionState" : "extracted_with_value",
@@ -3837,6 +4527,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "建議值為2。1影格提供最低延遲，但可能需要乙太網路連線。"
+          }
+        }
+      }
+    },
+    "YM8-us-6sh.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Haptic Engine\"; ObjectID = \"YM8-us-6sh\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Haptic Engine"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "振动引擎"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "振動引擎"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "振動引擎"
           }
         }
       }

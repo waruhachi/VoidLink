@@ -13,7 +13,6 @@
 
 @interface MenuSectionView ()
 
-@property (nonatomic, strong) UIStackView *rootStackView;
 @property (nonatomic, strong) UILabel *titleLabel;
 @property (nonatomic, strong) UIButton *toggleButton;
 @property (nonatomic, strong) UIButton *toggleArea;
@@ -57,6 +56,7 @@ static BOOL overridePersistedFoldState = YES;
     _separatorLinePadding = 40;
     _sectionTitle = @"Section";
     _isExpanded = YES;
+    _expandable = true;
     _backgroundColor = [UIColor clearColor];
     _rootStackViewSpacing = [self isIPhone] ? 10 : 13.8;
     _subStackViews = [NSMutableArray array];
@@ -128,6 +128,10 @@ static BOOL overridePersistedFoldState = YES;
     // 布局
     [self setupConstraints];
     [self updateViewForFoldState];
+    
+    self.lockedSectionHandler = ^{
+        NSLog(@"Null execution of lockedSectionHandler");
+    };
 }
 
 - (void)setupConstraints {
@@ -235,7 +239,7 @@ static BOOL overridePersistedFoldState = YES;
 }
 
 - (void)setExpanded:(BOOL)isExpanded {
-    self.isExpanded = isExpanded;
+    self.isExpanded = !_expandable ? false : isExpanded;
     [self updateViewForFoldState];
     [[NSUserDefaults standardUserDefaults] setBool:self.isExpanded forKey:self.identifier];
     [[NSUserDefaults standardUserDefaults] synchronize];
@@ -278,7 +282,7 @@ static BOOL overridePersistedFoldState = YES;
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
     BOOL persistedFoldState = [defaults objectForKey:self.identifier] ? [defaults boolForKey:self.identifier] : YES;
 
-    [self setExpanded: MenuSectionView.overridePersistedFoldState ? YES : persistedFoldState];
+    [self setExpanded: MenuSectionView.overridePersistedFoldState ? _expandable : persistedFoldState];
 }
 
 - (void)removeSubStackView:(UIStackView *)stackView {
@@ -323,7 +327,8 @@ static BOOL overridePersistedFoldState = YES;
 }
 
 - (void)toggleFold {
-    self.isExpanded = !self.isExpanded;
+    self.isExpanded = !_expandable ? false : !self.isExpanded;
+    if(!_expandable && self.lockedSectionHandler) self.lockedSectionHandler();
     [self updateViewForFoldState];
     [[NSUserDefaults standardUserDefaults] setBool:self.isExpanded forKey:self.identifier];
     [[NSUserDefaults standardUserDefaults] synchronize];

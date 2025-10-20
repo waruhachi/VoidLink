@@ -43,6 +43,13 @@ typedef NS_ENUM(NSInteger, GyroMode) {
     AlwaysController
 };
 
+typedef NS_ENUM(NSInteger, HapticEnginePreference) {
+    HapticEngineAuto,
+    RumbleDevice,
+    LeftRightSwapped,
+    RumbleOff
+};
+
 typedef NS_ENUM(NSInteger, FramePacingMode) {
     FramePacingModeOff,
     FramePacingModeLegacy,
@@ -110,6 +117,9 @@ typedef NS_ENUM(NSInteger, WidgetSizeTransition) {
                  framePacingMode:(NSInteger)framePacingMode
                   sendDummyEvent:(BOOL)sendDummyEvent
                rememberFoldState:(BOOL)rememberFoldState
+              singleTapSensitivy:(CGFloat)singleTapSensitivy
+                    hapticEngine:(NSInteger)hapticEngine
+          edgeSlidingSensitivity:(CGFloat)edgeSlidingSensitivity
           backgroundSessionTimer:(NSInteger)backgroundSessionTimer;
 
 - (NSArray*) getHosts;

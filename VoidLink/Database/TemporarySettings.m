@@ -130,7 +130,14 @@
     self.framePacingMode = settings.framePacingMode;
     self.sendDummyEvent = settings.sendDummyEvent;
     self.rememberFoldState = settings.rememberFoldState;
+    self.gyroBiasX = settings.gyroBiasX;
+    self.gyroBiasY = settings.gyroBiasY;
+    self.gyroBiasZ = settings.gyroBiasZ;
+    self.singleTapSensitivity = settings.singleTapSensitivity;
     self.backgroundSessionTimer = settings.backroundSessionTimer;
+    self.edgeSlidingSensitivity = settings.edgeSlidingSensitivity;
+    self.appTheme = settings.appTheme;
+    self.hapticEngine = settings.hapticEngine;
 #endif
     self.uniqueId = settings.uniqueId;
     

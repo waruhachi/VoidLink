@@ -21,6 +21,13 @@
 
 @interface LayoutOnScreenControlsViewController ()
 
+typedef NS_ENUM(NSUInteger, AlphaSliderMode) {
+    widgetAlpha,
+    labelAlpha,
+    borderAlpha,
+    AlphaSliderModeCount
+};
+
 @end
 
 
@@ -28,6 +35,7 @@
     BOOL isToolbarHidden;
     OSCProfilesManager* profilesManager;
     OnScreenWidgetView* selectedWidgetView;
+    AlphaSliderMode alphaSliderMode;
     CALayer* selectedControllerLayer;
     CGRect controllerLoadedBounds;
     bool widgetViewSelected;
@@ -122,11 +130,13 @@
     
     // _activeCustomOscButtonPositionDict will be updated every time when the osc profile is reloaded
     OSCProfile *oscProfile = [profilesManager getSelectedProfile]; //returns the currently selected OSCProfile
-    for (NSData *buttonStateEncoded in oscProfile.buttonStates) {
+    for (NSData *buttonStateEncoded in oscProfile.buttonStatesEncoded) {
         // OnScreenButtonState* buttonState = [NSKeyedUnarchiver unarchivedObjectOfClass:[OnScreenButtonState class] fromData:buttonStateEncoded error:nil];
         OnScreenButtonState* buttonState = [profilesManager unarchiveButtonStateEncoded:buttonStateEncoded];
-        if(buttonState.buttonType == CustomOnScreenWidget){
+        if(buttonState.widgetType == CustomOnScreenWidget){
             OnScreenWidgetView* widgetView = [[OnScreenWidgetView alloc] initWithCmdString:buttonState.name buttonLabel:buttonState.alias shape:buttonState.widgetShape]; //reconstruct widgetView
+            widgetView.identifier = buttonState.identifier;
+            NSLog(@"cmd: %@, id: %@", buttonState.name, widgetView.identifier);
             widgetView.guidelineDelegate = (id<OnScreenWidgetGuidelineUpdateDelegate>)self;
             widgetView.translatesAutoresizingMaskIntoConstraints = NO; // weird but this is mandatory, or you will find no key views added to the right place
             widgetView.widthFactor = buttonState.widthFactor;
@@ -137,17 +147,21 @@
             widgetView.mouseButtonAction = buttonState.mouseButtonAction;
             widgetView.sensitivityFactorX = buttonState.sensitivityFactorX;
             widgetView.sensitivityFactorY = buttonState.sensitivityFactorY;
+            widgetView.yawFactor = buttonState.yawFactor;
+            widgetView.pitchFactor = buttonState.pitchFactor;
             widgetView.trackballDecelerationRate = buttonState.decelerationRate;
             widgetView.stickIndicatorOffset = buttonState.stickIndicatorOffset;
             widgetView.minStickOffset = buttonState.minStickOffset;
-            widgetView.buttonTriggerMode = buttonState.buttonTriggerMode;
+            widgetView.buttonMode = buttonState.buttonMode;
             // Add the widgetView to the view controller's view
             [self.view insertSubview:widgetView belowSubview:self.widgetPanelStack];
             buttonState.position = [self denormalizeWidgetPosition:buttonState.position];
             [widgetView setLocationWithPosition:buttonState.position];
             widgetView.sizeReference = [self getCurrentWidgetSizeReference];
             [widgetView resizeWidgetView]; // resize must be called after relocation
-            [widgetView adjustTransparencyWithAlpha:buttonState.backgroundAlpha];
+            [widgetView adjustTransparencyWithAlpha:buttonState.backgroundAlpha tweakBorderAlpha:NO];
+            [widgetView tweakLabelAlphaWithAlpha:buttonState.labelAlpha];
+            [widgetView tweakBorderAlphaWithAlpha:buttonState.borderAlpha];
             [widgetView adjustBorderWithWidth:buttonState.borderWidth];
             [self.onScreenWidgetViews addObject:widgetView];
         }
@@ -328,6 +342,34 @@
     }
     else {
         self.undoButton.alpha = 0.3;
+    }
+}
+
+- (void)switchAlphaSlider:(UISwipeGestureRecognizer *)sender {
+    if(!widgetViewSelected) return;
+    alphaSliderMode = (alphaSliderMode + 1) % AlphaSliderModeCount;
+    [self loadWidgetAlphas];
+}
+
+- (void)loadWidgetAlphas{
+    if(self->selectedWidgetView != nil && self->widgetViewSelected){
+        switch(alphaSliderMode){
+            case widgetAlpha:
+                [self.widgetAlphaSlider setValue: self->selectedWidgetView.backgroundAlpha];
+                [self.widgetAlphaLabel setText:[LocalizationHelper localizedStringForKey:@"Alpha: %.2f", _widgetAlphaSlider.value]];
+                break;
+            case labelAlpha:
+                [self.widgetAlphaSlider setValue: self->selectedWidgetView.labelAlpha];
+                [self.widgetAlphaLabel setText:[LocalizationHelper localizedStringForKey:@"Label alpha: %.2f", _widgetAlphaSlider.value]];
+                break;
+            case borderAlpha:
+                [self.widgetAlphaSlider setValue: self->selectedWidgetView.borderAlpha];
+                [self.widgetAlphaLabel setText:[LocalizationHelper localizedStringForKey:@"Border alpha: %.2f", _widgetAlphaSlider.value]];
+                break;
+            case AlphaSliderModeCount:
+            default:
+                break;
+        }
     }
 }
 
@@ -609,8 +651,9 @@
     bool noValidMouseButtonString = ![CommandManager.mouseButtonMappings.allKeys containsObject:cmdString];
     bool noValidTouchPadString = ![CommandManager.touchPadCmds containsObject:cmdString];
     bool noValidOscButtonString = ![CommandManager.oscButtonMappings.allKeys containsObject:cmdString];
-    bool noValidSpecialButtonString = ![CommandManager.specialOverlayButtonCmds containsObject:cmdString];
-    bool paramInvalid = noValidKeyboardString && noValidMouseButtonString && noValidTouchPadString && noValidOscButtonString && noValidSpecialButtonString && noValidSuperComboButtonString;
+    bool noValidFunctionalButtonString = ![CommandManager.functionalButtonCmds containsObject:cmdString];
+    bool noValidMotionControlButtonString = ![CommandManager.motionControlButtonCmds containsObject:cmdString];
+    bool paramInvalid = noValidKeyboardString && noValidMouseButtonString && noValidTouchPadString && noValidOscButtonString && noValidFunctionalButtonString && noValidSuperComboButtonString && noValidMotionControlButtonString;
     
     if([buttonLabel isEqualToString:@""]) widgetInitParams[@"buttonLabel"] = [[cmdString lowercaseString] capitalizedString];
 
@@ -634,6 +677,7 @@
 - (void) updateWidget:(OnScreenWidgetView* )widget byParams:(NSMutableDictionary* )widgetInitParams createNew:(bool)createNew{
     if(![self isWidgetParamsValid:widgetInitParams]) return;
     OnScreenWidgetView* newWidget = [[OnScreenWidgetView alloc] initWithCmdString:widgetInitParams[@"cmdString"] buttonLabel:widgetInitParams[@"buttonLabel"] shape:widgetInitParams[@"shape"]]; //reconstruct widgetView
+    newWidget.identifier = createNew ? [UUIDHelper newUUID] : widget.identifier;
     newWidget.guidelineDelegate = (id<OnScreenWidgetGuidelineUpdateDelegate>)self;
     newWidget.translatesAutoresizingMaskIntoConstraints = NO; // weird but this is mandatory, or you will find no key views added to the right place
     newWidget.widthFactor = widget.widthFactor;
@@ -642,19 +686,23 @@
     newWidget.autoTapInterval = widget.autoTapInterval;
     newWidget.sensitivityFactorX = widget.sensitivityFactorX;
     newWidget.sensitivityFactorY = widget.sensitivityFactorY;
+    newWidget.yawFactor = widget.yawFactor;
+    newWidget.pitchFactor = widget.pitchFactor;
     newWidget.trackballDecelerationRate = widget.trackballDecelerationRate;
     newWidget.stickIndicatorOffset = widget.stickIndicatorOffset;
     newWidget.minStickOffset = [widgetInitParams[@"minStickOffsetString"] floatValue];
     [newWidget setVibrationWithStyle:widget.vibrationStyle];
     newWidget.mouseButtonAction = widget.mouseButtonAction;
-    newWidget.buttonTriggerMode = widget.buttonTriggerMode;
+    newWidget.buttonMode = widget.buttonMode;
     [self.view insertSubview:newWidget belowSubview:self.widgetPanelStack];
 
     if(createNew) [newWidget setLocationWithPosition:CGPointMake(90, 130)];
     else [newWidget setLocationWithPosition:widget.center];
     newWidget.sizeReference = widget.sizeReference;
     [newWidget resizeWidgetView]; // resize must be called after relocation
-    [newWidget adjustTransparencyWithAlpha:widget.backgroundAlpha];
+    [newWidget adjustTransparencyWithAlpha:widget.backgroundAlpha tweakBorderAlpha:NO];
+    [newWidget tweakLabelAlphaWithAlpha:widget.labelAlpha];
+    [newWidget tweakBorderAlphaWithAlpha:widget.borderAlpha];
     [newWidget adjustBorderWithWidth:widget.borderWidth];
     [self.onScreenWidgetViews addObject:newWidget];
     self->selectedWidgetView = newWidget;
@@ -669,6 +717,7 @@
     if(![self isWidgetParamsValid:widgetInitParams]) return;
     //saving & present the keyboard button:
     OnScreenWidgetView* widgetView = [[OnScreenWidgetView alloc] initWithCmdString:widgetInitParams[@"cmdString"] buttonLabel:widgetInitParams[@"buttonLabel"] shape:widgetInitParams[@"shape"]];
+    widgetView.identifier = [UUIDHelper newUUID];
     widgetView.guidelineDelegate = (id<OnScreenWidgetGuidelineUpdateDelegate>)self;
     widgetView.translatesAutoresizingMaskIntoConstraints = NO; // weird but this is mandatory, or you will find no key views added to the right place
     widgetView.minStickOffset = [widgetInitParams[@"minStickOffsetString"] floatValue];
@@ -743,7 +792,7 @@
  */
 
 - (void)widgetViewTapped: (NSNotification *)notification{
-    //self.undoButton.alpha = selectedWidgetView.layoutChanges.count>1 && !CGPointEqualToPoint(selectedWidgetView.layoutChanges.lastObject.CGPointValue, selectedWidgetView.initialCenter)? 1.0 : 0.3;
+    
     [self hideStickIndicators];
     
     // receive the selected widgetView obj passed from the notification
@@ -752,62 +801,68 @@
     OnScreenWidgetView* widgetView = (OnScreenWidgetView* )notification.object;
     self->widgetViewSelected = true;
     self->controllerLayerSelected = false;
+    
+    if(widgetView != selectedWidgetView) [selectedWidgetView setAutoTapIntervalByTextWithStr:_autoTapField.text];
+    
     self->selectedWidgetView = widgetView;
         
     [self autoFitLabel:self.currentProfileLabel];
     self.currentProfileLabel.textAlignment = NSTextAlignmentLeft;
     [self.currentProfileLabel setText:
-     [LocalizationHelper localizedStringForKey:@"  Profile: %@     Widget: %@",
+     [LocalizationHelper localizedStringForKey:@"  Profile: %@    Alias: %@    Command: %@",
       [profilesManager getSelectedProfile].name,
-      selectedWidgetView.widgetLabel]];
+      selectedWidgetView.widgetLabel, selectedWidgetView.cmdString]];
     
     self.undoButton.alpha = selectedWidgetView.layoutChanges.count>1 ? 1.0 : 0.3;
     
     [self.layoutOSC updateGuidelinesForOnScreenWidget:self->selectedWidgetView]; // shows guideline immediately when widget is tapped
-
-
-    // hide irrelevant stacks
-    self.autoTapStack.hidden = selectedWidgetView.widgetType != WidgetTypeEnumButton;
-    self.triggerModeStack.hidden = selectedWidgetView.widgetType != WidgetTypeEnumButton;
-    
-    bool showSensitivityFactorStack = selectedWidgetView.hasSensitivityTweak;
-    bool showStickIndicatorOffsetStack = selectedWidgetView.hasStickIndicator;
         
-    self.sensitivityXStack.hidden = !showSensitivityFactorStack || [selectedWidgetView.cmdString containsString:@"MOUSEWHEEL"] || [selectedWidgetView.cmdString containsString:@"WHEEL"];
-    self.sensitivityYStack.hidden = !showSensitivityFactorStack;
-    if(showSensitivityFactorStack){
-        if([selectedWidgetView.cmdString containsString:@"MOUSEWHEEL"] || [selectedWidgetView.cmdString containsString:@"WHEEL"]){
-            [self.sensitivityYSlider setMinimumValue:-4];
-            [self.sensitivityYSlider setMaximumValue:4];
-        }
-        else{
-            [self.sensitivityYSlider setMinimumValue:0];
-            [self.sensitivityYSlider setMaximumValue:8];
-        }
+    // stack & values
+    [selectedWidgetView accessWidgetAttributes];
+    
+    self.sensitivityXStack.hidden = !selectedWidgetView.hasSensitivityX;
+    if(selectedWidgetView.hasSensitivityX){
+        [self.sensitivityXSlider setMinimumValue:selectedWidgetView.sensitivityXMin];
+        [self.sensitivityXSlider setMaximumValue:selectedWidgetView.sensitivityXMax];
+        [self.sensitivityXSlider setValue:self->selectedWidgetView.sensitivityFactorX];
+        [self.sensitivityXLabel setText:[LocalizationHelper localizedStringForKey:@"SensitivityX: %.2f", self->selectedWidgetView.sensitivityFactorX]];
+        [self autoFitLabel:self.sensitivityXLabel];
     }
     
-    self.stickIndicatorOffsetStack.hidden = !showStickIndicatorOffsetStack;
-    self.mouseDownButtonStack.hidden = !([selectedWidgetView.cmdString containsString:@"MOUSEPAD"] && selectedWidgetView.widgetType == WidgetTypeEnumTouchPad);
-    self.decelerationRateStack.hidden = !([selectedWidgetView.cmdString containsString:@"TRACKBALL"] && selectedWidgetView.widgetType == WidgetTypeEnumTouchPad);
-    
-    [self autoFitStack:self.widgetPanelStack];
-
-    // setup values
-
-
-    if(showSensitivityFactorStack){
-        [self.sensitivityXSlider setValue:self->selectedWidgetView.sensitivityFactorX];
-        [self autoFitLabel:self.sensitivityXLabel];
-        [self.sensitivityXLabel setText:[LocalizationHelper localizedStringForKey:@"SensitivityX: %.2f", self->selectedWidgetView.sensitivityFactorX]];
-        [self autoFitLabel:self.sensitivityYLabel];
+    self.sensitivityYStack.hidden = !selectedWidgetView.hasSensitivityY;
+    if(selectedWidgetView.hasSensitivityY){
+        [self.sensitivityYSlider setMinimumValue:selectedWidgetView.sensitivityYMin];
+        [self.sensitivityYSlider setMaximumValue:selectedWidgetView.sensitivityYMax];
         [self.sensitivityYSlider setValue:self->selectedWidgetView.sensitivityFactorY];
         [self.sensitivityYLabel setText:[LocalizationHelper localizedStringForKey:@"SensitivityY: %.2f", self->selectedWidgetView.sensitivityFactorY]];
+        [self autoFitLabel:self.sensitivityYLabel];
     }
-    if(showStickIndicatorOffsetStack){
+    
+    self.yawFactorStack.hidden = !selectedWidgetView.hasYawFactor;
+    if(selectedWidgetView.hasYawFactor){
+        [self.yawFactorSlider setMinimumValue:selectedWidgetView.yawFactorMin];
+        [self.yawFactorSlider setMaximumValue:selectedWidgetView.yawFactorMax];
+        [self.yawFactorSlider setValue:self->selectedWidgetView.yawFactor];
+        [self.yawFactorLabel setText:[LocalizationHelper localizedStringForKey:@"Yaw factor: %.2f", self->selectedWidgetView.yawFactor]];
+        [self autoFitLabel:self.yawFactorLabel];
+    }
+
+    self.pitchFactorStack.hidden = !selectedWidgetView.hasPitchFactor;
+    if(selectedWidgetView.hasPitchFactor){
+        [self.pitchFactorSlider setMinimumValue:selectedWidgetView.pitchFactorMin];
+        [self.pitchFactorSlider setMaximumValue:selectedWidgetView.pitchFactorMax];
+        [self.pitchFactorSlider setValue:self->selectedWidgetView.pitchFactor];
+        [self.pitchFactorLabel setText:[LocalizationHelper localizedStringForKey:@"Pitch factor: %.2f", self->selectedWidgetView.pitchFactor]];
+        [self autoFitLabel:self.pitchFactorLabel];
+    }
+
+    
+    self.stickIndicatorOffsetStack.hidden = !selectedWidgetView.hasStickIndicator;
+    if(selectedWidgetView.hasStickIndicator){
         // illustrating the indicator offset,
         [self hideStickIndicators];
         selectedWidgetView.touchBeganLocation = CGPointMake(CGRectGetWidth(selectedWidgetView.frame)/2, CGRectGetHeight(selectedWidgetView.frame)/4);
-        [selectedWidgetView showStickIndicator];// this will create the indicator CAShapeLayers
+        [selectedWidgetView showStickIndicator];
         [self.stickIndicatorOffsetSlider setValue:self->selectedWidgetView.stickIndicatorOffset];
         [self stickIndicatorOffsetSliderMoved:self.stickIndicatorOffsetSlider];
         [self autoFitLabel:self.stickIndicatorOffsetLabel];
@@ -822,30 +877,44 @@
     [self.widgetHeightSlider setValue: self->selectedWidgetView.deNormalizedHeightFactor];
     [self autoFitLabel:self.widgetHeightLabel];
     [self.widgetHeightLabel setText:[LocalizationHelper localizedStringForKey:@"Height: %.2f", self->selectedWidgetView.deNormalizedHeightFactor]];
-
-    [self.widgetAlphaSlider setValue: self->selectedWidgetView.backgroundAlpha];
+    
+    
+    [self loadWidgetAlphas];
     [self autoFitLabel:self.widgetAlphaLabel];
-    [self widgetAlphaSliderMoved:self.widgetAlphaSlider];
     
     [self.widgetBorderWidthSlider setValue:self->selectedWidgetView.borderWidth];
     [self autoFitLabel:self.widgetBorderWidthLabel];
     [self widgetBorderWidthSliderMoved:self.widgetBorderWidthSlider];
     
-    [self.autoTapSlider setValue:self->selectedWidgetView.autoTapInterval];
+    self.autoTapStack.hidden = !selectedWidgetView.hasAutoTap;
+    // [self.autoTapSlider setValue:self->selectedWidgetView.autoTapInterval];
+    [self.autoTapField setText:[self->selectedWidgetView getAutoTapIntervalStr]];
+    self.autoTapField.textColor = [UIColor whiteColor];
+    self.autoTapField.keyboardType = UIKeyboardTypeNumbersAndPunctuation;
+    self.autoTapField.attributedPlaceholder =
+        [[NSAttributedString alloc] initWithString:[LocalizationHelper localizedStringForKey:@"Minimum: 50ms. 0 to disable. ms(milliSec),s(sec),m(min). ⏎ to save"]
+                                        attributes:@{
+                    NSForegroundColorAttributeName:[[UIColor whiteColor] colorWithAlphaComponent:0.77]
+                                        }];
     [self autoFitLabel:self.autoTapLabel];
-    [self autoTapSliderMoved:self.autoTapSlider];
 
+    self.decelerationRateStack.hidden = !selectedWidgetView.hasTrackBall;
     [self.decelerationRateSlider setValue:selectedWidgetView.trackballDecelerationRate];
     [self autoFitLabel:self.decelerationRateLabel];
     [self decelerationRateSliderMoved:self.decelerationRateSlider];
     
+    self.mouseDownButtonStack.hidden = !selectedWidgetView.isMousePad;
     self.mouseButtonDownSelector.selectedSegmentIndex = selectedWidgetView.mouseButtonAction;
-    [self.triggerModeSelector setSelectedSegmentIndex:selectedWidgetView.buttonTriggerMode];
+    
+    self.buttonModeStack.hidden = selectedWidgetView.widgetType != WidgetTypeEnumButton;
+    [self.buttonModeSelector setEnabled:!selectedWidgetView.isFuncationalButton forSegmentAtIndex:0];
+    [self.buttonModeSelector setEnabled:!selectedWidgetView.isFuncationalButton forSegmentAtIndex:1];
+    [self.buttonModeSelector setSelectedSegmentIndex:selectedWidgetView.buttonMode];
 
+    [self autoFitStack:self.widgetPanelStack];
+    
     if([self isIPhone]){
-        self.vibrationStyleStack.hidden =
-        [widgetView.cmdString containsString:@"MOUSEPAD"] ||
-        [widgetView.cmdString containsString:@"TRACKBALL"];
+        self.vibrationStyleStack.hidden = !selectedWidgetView.hasHapticFeedback;
         [self autoFitStack:self.widgetPanelStack];
         self.vibrationStyleSelector.selectedSegmentIndex = self->selectedWidgetView.vibrationStyle;
     }
@@ -873,7 +942,7 @@
     [self autoFitLabel:self.currentProfileLabel];
     self.currentProfileLabel.textAlignment = NSTextAlignmentLeft;
     [self.currentProfileLabel setText:
-     [LocalizationHelper localizedStringForKey:@"  Profile: %@     Widget: %@",
+     [LocalizationHelper localizedStringForKey:@"  Profile: %@    Widget: %@",
       [profilesManager getSelectedProfile].name,
       selectedControllerLayer.name]];
 
@@ -923,14 +992,28 @@
 }
 
 - (void)widgetAlphaSliderMoved:(UISlider* )sender{
-    [self.widgetAlphaLabel setText:[LocalizationHelper localizedStringForKey:@"Alpha: %.2f", sender.value]];
     if(self->selectedWidgetView != nil && self->widgetViewSelected){
-        [self->selectedWidgetView adjustTransparencyWithAlpha:sender.value];
+        switch(alphaSliderMode){
+            case widgetAlpha:
+                [self->selectedWidgetView adjustTransparencyWithAlpha:sender.value tweakBorderAlpha:YES];
+                break;
+            case labelAlpha:
+                [selectedWidgetView tweakLabelAlphaWithAlpha:sender.value];
+                break;
+            case borderAlpha:
+                [self->selectedWidgetView tweakBorderAlphaWithAlpha:sender.value];
+                break;
+            case AlphaSliderModeCount:
+            default:
+                break;
+        }
+        [self loadWidgetAlphas];
     }
 
     if(self->selectedControllerLayer != nil && self->controllerLayerSelected){
         [self.layoutOSC adjustControllerLayerOpacityWith:self->selectedControllerLayer and:sender.value];
     }
+    
     return;
 }
 
@@ -942,14 +1025,14 @@
     return;
 }
 
+/*
 - (void)autoTapSliderMoved:(UISlider* )sender{
     [self.autoTapLabel setText:(uint16_t)sender.value < 50 ? [LocalizationHelper localizedStringForKey: @"Auto tap disabled"] : [LocalizationHelper localizedStringForKey: @"Auto tap: %dms", (uint16_t)sender.value]];
     if(self->selectedWidgetView != nil && self->widgetViewSelected){
         selectedWidgetView.autoTapInterval = (uint16_t)sender.value;
     }
     return;
-}
-
+} */
 
 - (void)mouseDownButtonChanged:(UISegmentedControl* )sender{
     if(self->selectedWidgetView != nil && self->widgetViewSelected){
@@ -959,7 +1042,7 @@
 
 - (void)slideModeChanged:(UISegmentedControl* )sender{
     if(self->selectedWidgetView != nil && self->widgetViewSelected){
-        selectedWidgetView.buttonTriggerMode = _triggerModeSelector.selectedSegmentIndex;
+        selectedWidgetView.buttonMode = _buttonModeSelector.selectedSegmentIndex;
     }
 }
 
@@ -998,6 +1081,24 @@
 - (void)sensitivityYSliderMoved:(UISlider* )sender{
     [self.sensitivityYLabel setText:[LocalizationHelper localizedStringForKey:@"SensitivityY: %.2f", sender.value]];
     if(self->selectedWidgetView != nil && self->widgetViewSelected) self->selectedWidgetView.sensitivityFactorY = sender.value;
+    return;
+}
+
+- (void)yawFactorSliderMoved:(UISlider* )sender{;
+    [self.yawFactorLabel setText:[LocalizationHelper localizedStringForKey:@"Yaw factor: %.2f", sender.value]];
+    [self.pitchFactorLabel setText:[LocalizationHelper localizedStringForKey:@"Pitch factor: %.2f", sender.value]];
+    [self.pitchFactorSlider setValue:sender.value];
+
+    if(self->selectedWidgetView != nil && self->widgetViewSelected){
+        self->selectedWidgetView.yawFactor = sender.value;
+        self->selectedWidgetView.pitchFactor = sender.value;
+    }
+    return;
+}
+
+- (void)pitchFactorSliderMoved:(UISlider* )sender{
+    [self.pitchFactorLabel setText:[LocalizationHelper localizedStringForKey:@"Pitch factor: %.2f", sender.value]];
+    if(self->selectedWidgetView != nil && self->widgetViewSelected) self->selectedWidgetView.pitchFactor = sender.value;
     return;
 }
 
@@ -1102,13 +1203,20 @@
 
     [self.widgetAlphaSlider addTarget:self action:@selector(widgetAlphaSliderMoved:) forControlEvents:(UIControlEventValueChanged)];
     self.widgetAlphaLabel.text = [LocalizationHelper localizedStringForKey:@"Alpha"];
+    self.widgetAlphaLabel.userInteractionEnabled = true;
+    UITapGestureRecognizer *alphaSwitchTapGesture =
+    [[UITapGestureRecognizer alloc] initWithTarget:self
+                                            action:@selector(switchAlphaSlider:)];
+    [self.widgetAlphaLabel addGestureRecognizer:alphaSwitchTapGesture];
+
    
     [self.widgetBorderWidthSlider addTarget:self action:@selector(widgetBorderWidthSliderMoved:) forControlEvents:(UIControlEventValueChanged)];
     self.widgetBorderWidthLabel.text = [LocalizationHelper localizedStringForKey:@"Border width"];
     self.borderWidthAlphaStack.hidden = YES;
     
-    [self.autoTapSlider addTarget:self action:@selector(autoTapSliderMoved:) forControlEvents:(UIControlEventValueChanged)];
-    self.autoTapLabel.text = [LocalizationHelper localizedStringForKey:@"Autotap"];
+    // [self.autoTapSlider addTarget:self action:@selector(autoTapSliderMoved:) forControlEvents:(UIControlEventValueChanged)];
+    self.autoTapLabel.text = [LocalizationHelper localizedStringForKey:@"Autotap timer   "];
+    self.autoTapField.delegate = self;
     self.autoTapStack.hidden = YES;
   
     [self.sensitivityXSlider addTarget:self action:@selector(sensitivityXSliderMoved:) forControlEvents:(UIControlEventValueChanged)];
@@ -1118,7 +1226,14 @@
     [self.sensitivityYSlider addTarget:self action:@selector(sensitivityYSliderMoved:) forControlEvents:(UIControlEventValueChanged)];
     self.sensitivityYLabel.text = [LocalizationHelper localizedStringForKey:@"SensitivityY"];
     self.sensitivityYStack.hidden = YES;
-
+    
+    [self.yawFactorSlider addTarget:self action:@selector(yawFactorSliderMoved:) forControlEvents:(UIControlEventValueChanged)];
+    self.yawFactorLabel.text = [LocalizationHelper localizedStringForKey:@"SensitivityYaw"];
+    self.yawFactorStack.hidden = YES;
+    
+    [self.pitchFactorSlider addTarget:self action:@selector(pitchFactorSliderMoved:) forControlEvents:(UIControlEventValueChanged)];
+    self.pitchFactorLabel.text = [LocalizationHelper localizedStringForKey:@"SensitivityPitch"];
+    self.pitchFactorStack.hidden = YES;
     
     [self.decelerationRateSlider addTarget:self action:@selector(decelerationRateSliderMoved:) forControlEvents:(UIControlEventValueChanged)];
     self.decelerationRateLabel.text = [LocalizationHelper localizedStringForKey:@"Deceleration Rate"];
@@ -1139,9 +1254,9 @@
     [self.mouseButtonDownSelector setTitleTextAttributes:whiteFontAttributes forState:UIControlStateNormal];
     self.mouseDownButtonStack.hidden = YES;
 
-    [self.triggerModeSelector addTarget:self action:@selector(slideModeChanged:) forControlEvents:(UIControlEventValueChanged)];
-    [self.triggerModeSelector setTitleTextAttributes:whiteFontAttributes forState:UIControlStateNormal];
-    self.triggerModeStack.hidden = YES;
+    [self.buttonModeSelector addTarget:self action:@selector(slideModeChanged:) forControlEvents:(UIControlEventValueChanged)];
+    [self.buttonModeSelector setTitleTextAttributes:whiteFontAttributes forState:UIControlStateNormal];
+    self.buttonModeStack.hidden = YES;
 
     
     if([self isIPhone]){
@@ -1185,6 +1300,12 @@
             [self.vibrationStyleSelector removeSegmentAtIndex:3 animated:NO];
         }
     }
+}
+
+- (BOOL)textFieldShouldReturn:(UITextField *)textField {
+    [textField resignFirstResponder]; // 收起键盘
+    [selectedWidgetView setAutoTapIntervalByTextWithStr:textField.text];
+    return YES;
 }
 
 - (void)applyShadowForiOS13:(UIStackView* )stack {
@@ -1259,10 +1380,12 @@
     self->_oscProfilesTableViewController = [storyboard instantiateViewControllerWithIdentifier:@"OSCProfilesTableViewController"];
     
     //this part is just for registration, will not be immediately executed.
+    __weak typeof(self) weakSelf = self;
     self->_oscProfilesTableViewController.needToUpdateOscLayoutTVC = ^() {   // a block that will be called when the modally presented 'OSCProfilesTableViewController' VC is dismissed. By the time the 'OSCProfilesTableViewController' VC is dismissed the user would have potentially selected a different OSC profile with a different layout and they want to see this layout on this 'LayoutOnScreenControlsViewController.' This block of code will load the profile and then hide/show and move each OSC button to their appropriate position
-        NSLog(@"profile profile");
-        [self reloadLegacyOnScreenControls];
-        self->_oscProfilesTableViewController.currentOSCButtonLayers = self.layoutOSC.OSCButtonLayers; //pass updated OSCLayout to OSCProfileTableView again
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (!strongSelf) return;
+        [weakSelf reloadLegacyOnScreenControls];
+        strongSelf->_oscProfilesTableViewController.currentOSCButtonLayers = weakSelf.layoutOSC.OSCButtonLayers; //pass updated OSCLayout to OSCProfileTableView again
     };
     
     [self.oscProfilesTableViewController profileViewRefresh]; // execute this will make sure OSCLayout is updated from persisted profile, not any cache.
@@ -1287,8 +1410,9 @@
     _oscProfilesTableViewController = [storyboard instantiateViewControllerWithIdentifier:@"OSCProfilesTableViewController"];
     _oscProfilesTableViewController.layoutViewBounds = self.view.bounds;
     
+    __weak typeof(self) weakSelf = self;
     _oscProfilesTableViewController.needToUpdateOscLayoutTVC = ^() {   // a block that will be called when the modally presented 'OSCProfilesTableViewController' VC is dismissed. By the time the 'OSCProfilesTableViewController' VC is dismissed the user would have potentially selected a different OSC ofile with a different layout and they want to see this layout on this 'LayoutOnScreenControlsViewController.' This block of code will load the proffile and then hide/show and move each OSC button to their appropriate position
-        [self reloadLegacyOnScreenControls];
+        [weakSelf reloadLegacyOnScreenControls];
     };
 
     self.widgetPanelStack.hidden = YES;

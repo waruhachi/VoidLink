@@ -35,16 +35,14 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
  */
 @implementation StreamView {
     UIView* streamFrameTopLayerView;
+    UIViewController* streamFrameVC;
+    
     TemporarySettings* settings;
-    
-    OnScreenControls* onScreenControls;
-    
+        
     KeyboardInputField* keyInputField;
     BOOL isInputingText;
     NSMutableSet* keysDown;
     float streamAspectRatio;
-
-
     
     // iOS 13.4 mouse support
     NSInteger lastMouseButtonMask;
@@ -78,6 +76,7 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
     UIKeyModifierFlags comboKeyModifierFlags;
     
     WidgetSizeTransition _widgetSizeTransition;
+    OSCProfilesManager* oscProfileMan;
 }
 
 - (void) setupStreamView:(ControllerSupport*)controllerSupport
@@ -133,7 +132,8 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
     switch (settings.touchMode.intValue) {
         case NativeTouch:
             keyboardToggleRecognizer.immediateTriggering = false;
-            self->touchHandler = [[NativeTouchHandler alloc] initWithView:self andSettings:settings];break;
+            self->touchHandler = [[NativeTouchHandler alloc] initWithView:self andSettings:settings];
+            break;
         case NativeTouchOnly:
             keyboardToggleRecognizer.immediateTriggering = false;
             self->touchHandler = [[PureNativeTouchHandler alloc] initWithView:self andSettings:settings];break;
@@ -143,7 +143,7 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
             // if(settings.onscreenControls.intValue == OnScreenControlsLevelCustom) keyboardToggleRecognizer.numberOfTouchesRequired = 3; //deprecated: fixing keyboard taps to 3, in order to invoke OSC rebase in stream view by 4-finger tap.
             break;
         case AbsoluteTouch:
-            self->touchHandler = [[AbsoluteTouchHandler alloc] initWithView:self];
+            self->touchHandler = [[AbsoluteTouchHandler alloc] initWithView:self andSettings:settings];
             keyboardToggleRecognizer.immediateTriggering = true; //triggers signal in touchesBegan callback stage
             break;
         case TouchDisabled:
@@ -156,7 +156,7 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
     }
     
     // we'll render on-screen controls on the toplayer too:
-    onScreenControls = [[OnScreenControls alloc] initWithView:self->streamFrameTopLayerView controllerSup:controllerSupport streamConfig:streamConfig];  // don't delete, this is mandatory
+    _onScreenControls = [[OnScreenControls alloc] initWithView:self->streamFrameTopLayerView controllerSup:controllerSupport streamConfig:streamConfig];  // don't delete, this is mandatory
     /*
     // here we pass the tap recognizer to the onscreencontrols obj
     if (settings.touchMode.intValue == RelativeTouch){
@@ -167,7 +167,7 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
     OnScreenControlsLevel level = (OnScreenControlsLevel)[settings.onscreenControls integerValue];
     if (settings.touchMode.intValue != RelativeTouch && settings.touchMode.intValue != NativeTouch ) {
         Log(LOG_I, @"On-screen controls disabled in non-relative touch mode");
-        [onScreenControls setLevel:OnScreenControlsLevelOff];
+        [_onScreenControls setLevel:OnScreenControlsLevelOff];
         
         //pass touchesCaptureByOnScreenButtons Set to the native touchhandler, this NSSet is init witihin onscreencontrols class, don't do it again in native touch handler class
         [OnScreenControls.touchAddrsCapturedByOnScreenControls removeAllObjects]; // reset the attribute to nil
@@ -182,11 +182,11 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
     }
     //else if (level == OnScreenControlsLevelAuto) {
     else if (false) { // level auto cancelled in settings
-        [controllerSupport initAutoOnScreenControlMode:onScreenControls];
+        [controllerSupport initAutoOnScreenControlMode:_onScreenControls];
     }
     else {
         Log(LOG_I, @"Setting manual on-screen controls level: %d", (int)level);
-        [onScreenControls setLevel:level];
+        [_onScreenControls setLevel:level];
     }
     // It would be nice to just use GCMouse on iOS 14+ and the older API on iOS 13
     // but unfortunately that isn't possible today. GCMouse doesn't recognize many
@@ -261,6 +261,17 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
         [keyboardToggleTip removeFromSuperview];
     }
     NSLog(@"keyboard will show %f", CACurrentMediaTime());
+}
+
+- (UIViewController *)parentViewController {
+    UIResponder *responder = self;
+    while (responder) {
+        if ([responder isKindOfClass:[UIViewController class]]) {
+            return (UIViewController *)responder;
+        }
+        responder = responder.nextResponder;
+    }
+    return nil;
 }
 
 // this method also deals with recovering streamview when local keyboard is turned off
@@ -401,7 +412,7 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
 
 - (void) showOnScreenControls {
 #if !TARGET_OS_TV
-    if(!_widgetToolOpened) [onScreenControls show];
+    if(!_widgetToolOpened) [_onScreenControls show];
 #endif
 }
 
@@ -411,7 +422,7 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
 
 - (void) disableOnScreenControls {
 #if !TARGET_OS_TV
-    [onScreenControls setLevel:OnScreenControlsLevelOff];
+    [_onScreenControls setLevel:OnScreenControlsLevelOff];
 #endif
 }
 
@@ -438,7 +449,7 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
                          andConfig:(StreamConfiguration*)streamConfig {
     
     // we'll render on-screen controllers on the toplayer too.
-    onScreenControls = [[OnScreenControls alloc] initWithView:self->streamFrameTopLayerView controllerSup:controllerSupport streamConfig:streamConfig];
+    _onScreenControls = [[OnScreenControls alloc] initWithView:self->streamFrameTopLayerView controllerSup:controllerSupport streamConfig:streamConfig];
     /*
     // pass mouseRightClickTapRecognizer to onScreenControls obj here:
     if([self isOscEnabled]){
@@ -446,7 +457,7 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
         RelativeTouchHandler* relativeTouchHandler = (RelativeTouchHandler *)touchHandler;
         onScreenControls.mouseRightClickTapRecognizer = relativeTouchHandler.mouseRightClickTapRecognizer;
     } */
-    if([self isOscEnabled]) [onScreenControls setLevel:(OnScreenControlsLevel)settings.onscreenControls.intValue];
+    if([self isOscEnabled]) [_onScreenControls setLevel:(OnScreenControlsLevel)settings.onscreenControls.intValue];
 }
 
 
@@ -477,6 +488,35 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
     else return longSide;
 }
 
+- (void)saveRelocatedWidgetViews{
+    NSMutableDictionary* relocatedWidgetDict = [NSMutableDictionary dictionary];
+    
+    for(UIView* subview in self->streamFrameTopLayerView.subviews){
+        if([subview isKindOfClass:[OnScreenWidgetView class]]){
+            OnScreenWidgetView* widget = (OnScreenWidgetView* )subview;
+            if(widget.relocatedDuringStreaming) [relocatedWidgetDict setObject:widget forKey:widget.identifier];
+        }
+    }
+    
+    if(relocatedWidgetDict.allKeys.count == 0) return;
+    
+    oscProfileMan = [OSCProfilesManager sharedManager:self->streamFrameTopLayerView.bounds];
+    OSCProfile *newProfile = [oscProfileMan getSelectedProfile];
+    
+    for (NSInteger i = 0; i < newProfile.buttonStatesEncoded.count; i++) {
+        NSData* buttonStateEncoded = newProfile.buttonStatesEncoded[i];
+        OnScreenButtonState *newButtonState = [oscProfileMan unarchiveButtonStateEncoded:buttonStateEncoded];
+        if([relocatedWidgetDict.allKeys containsObject:newButtonState.identifier]){
+            OnScreenWidgetView* widget = [relocatedWidgetDict objectForKey:newButtonState.identifier];
+            newButtonState.position = [oscProfileMan normalizeWidgetPosition:widget.center];
+            NSData *newButtonStateEncoded = [NSKeyedArchiver archivedDataWithRootObject:newButtonState requiringSecureCoding:YES error:nil];
+            newProfile.buttonStatesEncoded[i] = newButtonStateEncoded;
+        }
+    }
+    
+    [oscProfileMan replaceSelectedProfileWith:newProfile overwriteDefault:NO];
+}
+
 - (void) reloadOnScreenWidgetViews{
     
     // NSLog(@"reload on screen keyboard buttons here");
@@ -484,25 +524,34 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
     // remove all keyboard widget views first
     [self clearOnScreenWidgets];
     
+    // get streamFrameVC
+    if(!streamFrameVC) streamFrameVC = [self parentViewController];
+    
     // bool customOscEnabled = [self isOscEnabled] && settings.onscreenControls.intValue == OnScreenControlsLevelCustom;
     
     if(![self isOnScreenWidgetEnabled]) return;
     
     OnScreenWidgetView.buttonVisualFeedbackEnabled = settings.buttonVisualFeedback;
     
-    OSCProfilesManager* profilesManager = [OSCProfilesManager sharedManager: self.bounds];
-    OSCProfile *oscProfile = [profilesManager getSelectedProfile]; //returns the currently selected OSCProfile
-
+    if(!oscProfileMan) oscProfileMan = [OSCProfilesManager sharedManager:self->streamFrameTopLayerView.bounds];
+    OSCProfile *oscProfile = [oscProfileMan getSelectedProfile]; //returns the currently selected OSCProfile
+    MotionHandler* motionHandler = [MotionHandler sharedInstance];
+    
     if(!OnScreenWidgetView.editMode){ // in edit mode, keyboard widget view will be updated within layoutool view controller.
-        
-        for (NSData *buttonStateEncoded in oscProfile.buttonStates) {
-            OnScreenButtonState* buttonState = [profilesManager unarchiveButtonStateEncoded:buttonStateEncoded];
-            if(buttonState.buttonType == CustomOnScreenWidget){
+                
+        for (NSData *buttonStateEncoded in oscProfile.buttonStatesEncoded) {
+            OnScreenButtonState* buttonState = [oscProfileMan unarchiveButtonStateEncoded:buttonStateEncoded];
+            if(buttonState.widgetType == CustomOnScreenWidget){
                 OnScreenWidgetView* widgetView = [[OnScreenWidgetView alloc] initWithCmdString:buttonState.name buttonLabel:buttonState.alias shape:buttonState.widgetShape]; //reconstruct widgetView
                 //--------------------------------------------------
-                onScreenControls.delegate = widgetView; // connecting onScreenControls to OnScreenWidgetView, sending the active instance for touchPad stick control
-                [onScreenControls sendInstance];
+                _onScreenControls.instanceReceiverDelegate = widgetView; // connecting onScreenControls to OnScreenWidgetView, sending the active instance for touchPad stick control
+                [_onScreenControls sendInstance];
                 //--------------------------------------------------
+                
+                widgetView.functionalButtonDelegate = (id<OnScreenFunctionalButtonDelegate>)streamFrameVC;
+                widgetView.motionHandler = motionHandler;
+                
+                widgetView.identifier = buttonState.identifier;
                 widgetView.translatesAutoresizingMaskIntoConstraints = NO; // weird but this is mandatory, or you will find no key views added to the right place
                 widgetView.widthFactor = buttonState.widthFactor;
                 widgetView.heightFactor = buttonState.heightFactor;
@@ -512,10 +561,12 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
                 widgetView.mouseButtonAction = buttonState.mouseButtonAction;
                 widgetView.sensitivityFactorX = buttonState.sensitivityFactorX;
                 widgetView.sensitivityFactorY = buttonState.sensitivityFactorY;
+                widgetView.yawFactor = buttonState.yawFactor;
+                widgetView.pitchFactor = buttonState.pitchFactor;
                 widgetView.trackballDecelerationRate = buttonState.decelerationRate;
                 widgetView.stickIndicatorOffset = buttonState.stickIndicatorOffset;
                 widgetView.minStickOffset = buttonState.minStickOffset;
-                widgetView.buttonTriggerMode = buttonState.buttonTriggerMode;
+                widgetView.buttonMode = buttonState.buttonMode;
                 // Add the widgetView to the view controller's view
                 [self->streamFrameTopLayerView addSubview:widgetView]; // add keyboard button to the stream frame view. must add it to the target view before setting location.
                 buttonState.position = [self denormalizeWidgetPosition:buttonState.position];
@@ -524,8 +575,10 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
                 // widgetView.sizeReference = buttonState.sizeReference;
                 //portrait markmarkmark
                 [widgetView resizeWidgetView]; // resize must be called after relocation
-                [widgetView adjustTransparencyWithAlpha:buttonState.backgroundAlpha];
+                [widgetView adjustTransparencyWithAlpha:buttonState.backgroundAlpha tweakBorderAlpha:NO];
                 [widgetView adjustBorderWithWidth:buttonState.borderWidth];
+                [widgetView tweakLabelAlphaWithAlpha:buttonState.labelAlpha];
+                [widgetView tweakBorderAlphaWithAlpha:buttonState.borderAlpha];
                 [widgetView setupAutoTapTimer];
             }
         }
@@ -533,11 +586,11 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
 }
 
 - (OnScreenControlsLevel) getCurrentOscState {
-    if (onScreenControls == nil) {
+    if (_onScreenControls == nil) {
         return OnScreenControlsLevelOff;
     }
     else {
-        return [onScreenControls getLevel];
+        return [_onScreenControls getLevel];
     }
 }
 
@@ -714,10 +767,10 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
     [self startInteractionTimer];
     
     if(settings.touchMode.intValue == NativeTouch || settings.touchMode.intValue == RelativeTouch){
-        [self->onScreenControls handleTouchDownEvent:touches];
+        [self->_onScreenControls handleTouchDownEvent:touches];
         [self->touchHandler touchesBegan:touches withEvent:event];
     }
-    else if(![onScreenControls handleTouchDownEvent:touches]) [touchHandler touchesBegan:touches withEvent:event];
+    else if(![_onScreenControls handleTouchDownEvent:touches]) [touchHandler touchesBegan:touches withEvent:event];
 }
 
 - (UIBarButtonItem *)createButtonWithImageNamed:(NSString *)imageName backgroundColor:(UIColor *)backgroundColor target:(id)target action:(SEL)action keyCode:(NSInteger)keyCode isToggleable:(BOOL)isToggleable {
@@ -880,9 +933,9 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
     
     if(self->settings.touchMode.intValue == NativeTouch || self->settings.touchMode.intValue == RelativeTouch){
         [self->touchHandler touchesMoved:touches withEvent:event];
-        [self->onScreenControls handleTouchMovedEvent:touches];
+        [self->_onScreenControls handleTouchMovedEvent:touches];
     }
-    else if(![self->onScreenControls handleTouchMovedEvent:touches]) [self->touchHandler touchesMoved:touches withEvent:event];
+    else if(![self->_onScreenControls handleTouchMovedEvent:touches]) [self->touchHandler touchesMoved:touches withEvent:event];
 }
 
 - (void) handleKeyCombos:(UIPress*) press{
@@ -976,9 +1029,9 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
     
     if(settings.touchMode.intValue == NativeTouch || settings.touchMode.intValue == RelativeTouch){
         [self->touchHandler touchesEnded:touches withEvent:event]; // when touches ended, must call the native touchhandler before onScreenControls, since the NSSet of touches captured by on screen button shall be updated later
-        [self->onScreenControls handleTouchUpEvent:touches];
+        [self->_onScreenControls handleTouchUpEvent:touches];
     }
-    else if(![onScreenControls handleTouchUpEvent:touches]) [touchHandler touchesEnded:touches withEvent:event];
+    else if(![_onScreenControls handleTouchUpEvent:touches]) [touchHandler touchesEnded:touches withEvent:event];
 }
 
 - (void)touchesCancelled:(NSSet *)touches withEvent:(UIEvent *)event {
@@ -1160,6 +1213,9 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
 }
 
 - (void)onKeyboardPressed:(UITextField *)textField {
+
+    if (textField.markedTextRange) return;
+
     NSString* inputText = textField.text;
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^{
         // If the text became empty, we know the user pressed the backspace key.

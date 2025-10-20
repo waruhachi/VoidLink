@@ -25,7 +25,7 @@ static CGRect layoutViewBounds;
 + (OSCProfilesManager *) sharedManager:(CGRect)viewBounds {
     static OSCProfilesManager *_sharedManager = nil;
     static dispatch_once_t onceToken;
-    layoutViewBounds = viewBounds;
+    if(!CGRectEqualToRect(viewBounds, CGRectZero)) layoutViewBounds = viewBounds;
     // NSLog(@"bounds width: %f, height: %f", layoutViewBounds.size.width, layoutViewBounds.size.height);
     dispatch_once(&onceToken, ^{
         _sharedManager = [[self alloc] init];
@@ -105,6 +105,22 @@ static CGRect layoutViewBounds;
     
 }
 
+- (void)replaceSelectedProfileWith:(OSCProfile*)newProfile overwriteDefault:(bool)overwriteDefault{
+    NSInteger index = 0;
+    NSMutableArray *profiles = [self getAllProfiles];
+    for (OSCProfile *profile in profiles) {
+        if (profile.isSelected == YES) {
+            index = [profiles indexOfObject:profile];
+        }
+    }
+    if(index>0) profiles[index] = newProfile;
+    else if(overwriteDefault) profiles[index] = newProfile;
+
+    NSMutableArray *profilesEncoded = [self encodedProfilesFromArray:profiles];
+    NSData *data = [NSKeyedArchiver archivedDataWithRootObject:profilesEncoded requiringSecureCoding:YES error:nil];
+    [[NSUserDefaults standardUserDefaults] setObject:data forKey:@"OSCProfiles"];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+}
 
 /**
  * Replaces one 'OSCProfile' object for another in the 'OSCProfile' objects array stored in persistent storage
@@ -139,8 +155,11 @@ static CGRect layoutViewBounds;
 }
 
 - (NSMutableArray *) getEncodedProfiles {
-    NSMutableArray *profiles = [self getAllProfiles];
-    NSMutableArray *profilesEncoded = [self encodedProfilesFromArray:profiles]; // encode each 'profile' object in the array and add them to a new array
+    NSData *profilesArrayEncoded = [[NSUserDefaults standardUserDefaults] objectForKey: @"OSCProfiles"];    // Get the encoded array of encoded OSC profiles from persistent storage
+    NSSet *classes = [NSSet setWithObjects:[NSString class], [NSMutableData class], [NSMutableArray class], [OSCProfile class], [OnScreenButtonState class], nil];
+    
+    NSMutableArray *profilesEncoded = [NSKeyedUnarchiver unarchivedObjectOfClasses:classes fromData:profilesArrayEncoded error:nil];    // Decode the encoded array itself, NOT the objects contained in the array
+
     return profilesEncoded;
 }
 
@@ -208,14 +227,23 @@ static CGRect layoutViewBounds;
 
 - (OSCProfile *) getSelectedProfile {
     NSMutableArray *profiles = [self getAllProfiles];
-
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    
+    NSString* persistedKey = @"widgetProfileUpdated-20251015";
+    BOOL needImportDefaultTemplates = [defaults objectForKey:persistedKey] == nil;
+    
+    if(profiles.count == 0 || needImportDefaultTemplates){
+        [self importDefaultTemplates];
+        [[NSUserDefaults standardUserDefaults] setBool:YES forKey:persistedKey];
+        [[NSUserDefaults standardUserDefaults] synchronize];
+        profiles = [self getAllProfiles];
+    }
     for (OSCProfile *profile in profiles) {
-                
         if (profile.isSelected) {
             return profile;
         }
     }
-    return nil;
+    return profiles[0];
 }
 
 - (NSInteger) getIndexOfSelectedProfile {
@@ -256,52 +284,40 @@ static CGRect layoutViewBounds;
 - (bool) updateSelectedProfile:(NSMutableArray *) oscButtonLayers {
     NSMutableArray* buttonStatesEncoded = [self convertOnScreenControllerAndWidgetsToButtonStates:oscButtonLayers];
     if([self getIndexOfSelectedProfile]==0) return false;
+    /*
     OSCProfile *newProfile = [[OSCProfile alloc] initWithName:[self getSelectedProfile].name
                             buttonStates:buttonStatesEncoded isSelected:YES];        // create a new 'OSCProfile'. Set the array of encoded button states created above to the 'buttonStates' property of the new profile, along with a 'name'. Set 'isSelected' argument to YES which will set this saved profile as the one that will show up in the game stream view
-
-    
-    /* set all saved OSCProfiles 'isSelected' property to NO since the new profile you're adding will be set as the selected profile */
-    NSMutableArray *profiles = [self getAllProfiles];
-    for (OSCProfile *profile in profiles) {
-        profile.isSelected = NO;
-    }
-    [self replaceProfile:[self getSelectedProfile] withProfile:newProfile];
+     */
+    OSCProfile *selectedProfile = [self getSelectedProfile];
+    selectedProfile.buttonStatesEncoded = buttonStatesEncoded;
+    [self replaceSelectedProfileWith:selectedProfile overwriteDefault:NO];
     return true;
 }
 
 
-- (void) saveProfileWithName:(NSString*)name andButtonLayers:(NSMutableArray *)oscButtonLayers {
-    NSMutableArray* buttonStatesEncoded = [self convertOnScreenControllerAndWidgetsToButtonStates:oscButtonLayers];
-    OSCProfile *newProfile = [[OSCProfile alloc] initWithName:name
-                            buttonStates:buttonStatesEncoded isSelected:YES];        // create a new 'OSCProfile'. Set the array of encoded button states created above to the 'buttonStates' property of the new profile, along with a 'name'. Set 'isSelected' argument to YES which will set this saved profile as the one that will show up in the game stream view
-    /* set all saved OSCProfiles 'isSelected' property to NO since the new profile you're adding will be set as the selected profile */
-    NSMutableArray *profiles = [self getAllProfiles];
-    for (OSCProfile *profile in profiles) {
-        
-        profile.isSelected = NO;
-    }
-    
-    if ([self profileNameAlreadyExist:name]) {  // if a saved profile with the same 'name' already exists in persistent storage then overwrite it and save the change to persistent storage
-        [self replaceProfile:[self OSCProfileWithName:name] withProfile:newProfile];
-    }
+- (void) duplicateSelectedProfileWithName:(NSString*)name {
+    if ([self profileNameAlreadyExist:name]) return;
     else {  // otherwise encode then add the new profile to the end of the OSCProfiles array
-        NSData *newProfileEncoded = [NSKeyedArchiver archivedDataWithRootObject:newProfile requiringSecureCoding:YES error:nil];
-        NSMutableArray *profilesEncoded = [self encodedProfilesFromArray:profiles];
-        [profilesEncoded addObject:newProfileEncoded];
-        
-        /* Encode the 'profilesEncoded' array itself, NOT the objects in the 'profilesEncoded' array, all of which are already encoded by this point */
-        NSData *data = [NSKeyedArchiver archivedDataWithRootObject:profilesEncoded requiringSecureCoding:YES error:nil];
-        [[NSUserDefaults standardUserDefaults] setObject:data forKey:@"OSCProfiles"];
-        [[NSUserDefaults standardUserDefaults] synchronize];
-        
-        // saving test:
-        /*
-        NSString *documentsPath = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
-        NSString *path = [documentsPath stringByAppendingPathComponent:@"newDefault.bin"];
-        
-        [profiles writeToFile:path atomically:YES];
-        NSLog(@"默认 Profile 数据已保存到: %@", path);
-         */
+        NSMutableArray *profiles = [self getAllProfiles];
+        OSCProfile* newProfile = nil;
+        for(OSCProfile* profile in profiles){
+            if(profile.isSelected){
+                profile.isSelected = false;
+                newProfile = [profile mutableCopy];
+                newProfile.isSelected = true;
+                newProfile.name = name;
+            }
+        }
+        if(newProfile){
+            NSData *newProfileEncoded = [NSKeyedArchiver archivedDataWithRootObject:newProfile requiringSecureCoding:YES error:nil];
+            NSMutableArray *profilesEncoded = [self encodedProfilesFromArray:profiles];
+            [profilesEncoded addObject:newProfileEncoded];
+            
+            /* Encode the 'profilesEncoded' array itself, NOT the objects in the 'profilesEncoded' array, all of which are already encoded by this point */
+            NSData *data = [NSKeyedArchiver archivedDataWithRootObject:profilesEncoded requiringSecureCoding:YES error:nil];
+            [[NSUserDefaults standardUserDefaults] setObject:data forKey:@"OSCProfiles"];
+            [[NSUserDefaults standardUserDefaults] synchronize];
+        }
     }
 }
 
@@ -373,24 +389,25 @@ static CGRect layoutViewBounds;
         CGPoint normalizedPosition = [self normalizeWidgetPosition:widgetView.center];
         OnScreenButtonState *buttonState = [[OnScreenButtonState alloc] initWithButtonName:widgetView.cmdString buttonType:CustomOnScreenWidget andPosition:normalizedPosition];
         buttonState.alias = widgetView.widgetLabel;
-        // buttonState.sizeReference = layoutViewBounds.size.width > layoutViewBounds.size.height ? longSide : shortSide;
-        //widgetView.sizeReference = buttonState.sizeReference; //  testttttttttt ???
-        NSLog(@"sizeRef: %d", buttonState.sizeReference);
+        buttonState.identifier = widgetView.identifier;
         buttonState.widthFactor = [self normalizeSizeWidthFactorWith:widgetView and:buttonState];
-        // NSLog(@"logging widthFactor %f", buttonState.widthFactor);
         buttonState.heightFactor = [self normalizeSizeHeightFactor:widgetView and:buttonState];
         buttonState.backgroundAlpha = widgetView.backgroundAlpha;
+        buttonState.labelAlpha = widgetView.labelAlpha;
+        buttonState.borderAlpha = widgetView.borderAlpha;
         buttonState.borderWidth = widgetView.borderWidth;
         buttonState.autoTapInterval = widgetView.autoTapInterval;
         buttonState.vibrationStyle = widgetView.vibrationStyle;
         buttonState.mouseButtonAction = widgetView.mouseButtonAction;
         buttonState.sensitivityFactorX = widgetView.sensitivityFactorX;
         buttonState.sensitivityFactorY = widgetView.sensitivityFactorY;
+        buttonState.yawFactor = widgetView.yawFactor;
+        buttonState.pitchFactor = widgetView.pitchFactor;
         buttonState.decelerationRate = widgetView.trackballDecelerationRate;
         buttonState.stickIndicatorOffset = widgetView.stickIndicatorOffset;
         buttonState.widgetShape = widgetView.shape;
         buttonState.minStickOffset = widgetView.minStickOffset;
-        buttonState.buttonTriggerMode = widgetView.buttonTriggerMode;
+        buttonState.buttonMode = widgetView.buttonMode;
         
         NSData *buttonStateEncoded = [NSKeyedArchiver archivedDataWithRootObject:buttonState requiringSecureCoding:YES error:nil];
         [buttonStatesEncoded addObject: buttonStateEncoded];

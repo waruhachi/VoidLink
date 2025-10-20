@@ -45,8 +45,6 @@
 - (id)initWithRefreshRate:(float)arg1 videoDynamicRange:(int)arg2;
 @end
 
-
-
 @implementation StreamFrameViewController {
     ControllerSupport *_controllerSupport;
     StreamManager *_streamMan;
@@ -86,11 +84,12 @@
 
 #if !TARGET_OS_TV
     CustomEdgeSlideGestureRecognizer *_slideToSettingsRecognizer;
-    CustomEdgeSlideGestureRecognizer *_slideToCmdToolRecognizer;
+    CustomEdgeSlideGestureRecognizer *_slideToToolboxRecognizer;
     CustomTapGestureRecognizer *_oscLayoutTapRecoginizer;
     LayoutOnScreenControlsViewController *_layoutOnScreenControlsVC;
     ToolboxViewController* toolBoxViewController;
     MicHandler* micHandler;
+    MotionHandler *_motionHandler;
 
 #else
     UITapGestureRecognizer *_menuTapGestureRecognizer;
@@ -268,7 +267,7 @@
     //NSLog(@"in osc streamview gestures: %d", (uint32_t)[_streamView.gestureRecognizers count]);
 }
 
-- (void)presentToolboxViewController{
+- (void)bringUpToolboxMenu{
     [self configOscLayoutTool];
     ToolboxViewController* oldToolboxVC = toolBoxViewController;
     toolBoxViewController = [[ToolboxViewController alloc] init];
@@ -282,6 +281,7 @@
 
 - (void)configGestures{
     _slideToSettingsRecognizer = [[CustomEdgeSlideGestureRecognizer alloc] initWithTarget:self action:@selector(edgeSwiped)];
+    _slideToSettingsRecognizer.edgeTolerance = _settings.edgeSlidingSensitivity.floatValue;
     _slideToSettingsRecognizer.edges = _settings.slideToSettingsScreenEdge.intValue;
     _slideToSettingsRecognizer.normalizedThresholdDistance = _settings.slideToSettingsDistance.floatValue;
     _slideToSettingsRecognizer.delaysTouchesBegan = NO;
@@ -289,13 +289,14 @@
     [self.view addGestureRecognizer:_slideToSettingsRecognizer];
     
     
-    _slideToCmdToolRecognizer = [[CustomEdgeSlideGestureRecognizer alloc] initWithTarget:self action:@selector(presentToolboxViewController)];
-    if(_settings.slideToSettingsScreenEdge.intValue == UIRectEdgeLeft) _slideToCmdToolRecognizer.edges = UIRectEdgeRight;
-    else _slideToCmdToolRecognizer.edges = UIRectEdgeLeft;  // _commandManager triggered by sliding from another side.
-    _slideToCmdToolRecognizer.normalizedThresholdDistance = _settings.slideToSettingsDistance.floatValue;
-    _slideToCmdToolRecognizer.delaysTouchesBegan = NO;
-    _slideToCmdToolRecognizer.delaysTouchesEnded = NO;
-    [self.view addGestureRecognizer:_slideToCmdToolRecognizer];
+    _slideToToolboxRecognizer = [[CustomEdgeSlideGestureRecognizer alloc] initWithTarget:self action:@selector(bringUpToolboxMenu)];
+    _slideToToolboxRecognizer.edgeTolerance = _settings.edgeSlidingSensitivity.floatValue;
+    if(_settings.slideToSettingsScreenEdge.intValue == UIRectEdgeLeft) _slideToToolboxRecognizer.edges = UIRectEdgeRight;
+    else _slideToToolboxRecognizer.edges = UIRectEdgeLeft;  // _commandManager triggered by sliding from another side.
+    _slideToToolboxRecognizer.normalizedThresholdDistance = _settings.slideToSettingsDistance.floatValue;
+    _slideToToolboxRecognizer.delaysTouchesBegan = NO;
+    _slideToToolboxRecognizer.delaysTouchesEnded = NO;
+    [self.view addGestureRecognizer:_slideToToolboxRecognizer];
     
     if([self isOscLayoutToolEnabled]){
         _oscLayoutTapRecoginizer = [[CustomTapGestureRecognizer alloc] initWithTarget:self action:@selector(handleWidgetLayoutGesture)];
@@ -332,7 +333,6 @@
         // Insert at index 0 to ensure it doesn't cover OSC controls (CALayers)
         if([_streamView.superview isKindOfClass:[UIScrollView class]]){
             [_streamView removeFromSuperview];
-            NSLog(@"removeFromSuperview %f", CACurrentMediaTime());
         }
         
         [self.view insertSubview:_streamView atIndex:0];
@@ -435,6 +435,14 @@
         [self startDisplayLink];
     }
     
+    _motionHandler = [MotionHandler sharedInstance];
+    _motionHandler.gyroBiasX = _settings.gyroBiasX.doubleValue;
+    _motionHandler.gyroBiasY = _settings.gyroBiasY.doubleValue;
+    _motionHandler.gyroBiasZ = _settings.gyroBiasZ.doubleValue;    
+
+    _streamView.onScreenControls.instanceReceiverDelegate = _motionHandler;
+    [_streamView.onScreenControls sendInstance];
+    
     NSLog(@"frameview gestures: %d", (uint32_t)[self.view.gestureRecognizers count]);
     NSLog(@"streamview gestures: %d", (uint32_t)[_streamView.gestureRecognizers count]);
 }
@@ -532,64 +540,22 @@
 
 - (void)popFirstStreamingTip {
     // 初始化倒计时秒数
-    __block NSInteger remainingSeconds = 16;
-
+    
     NSString* settingsEdgeSide = _settings.slideToSettingsScreenEdge.intValue == UIRectEdgeLeft ? [LocalizationHelper localizedStringForKey:@"left"] : [LocalizationHelper localizedStringForKey:@"right"];
     NSString* cmdToolEdgeSide = _settings.slideToSettingsScreenEdge.intValue == UIRectEdgeLeft ? [LocalizationHelper localizedStringForKey:@"right"] : [LocalizationHelper localizedStringForKey:@"left"];
     uint8_t slideDist = (uint8_t)(_settings.slideToSettingsDistance.floatValue * 100);
     // 创建弹窗
-    
     NSString* tipText = [LocalizationHelper localizedStringForKey:@"firstLaunchTip", settingsEdgeSide, slideDist, cmdToolEdgeSide, slideDist];
     
-    UIAlertController *tipsAlertController = [UIAlertController alertControllerWithTitle: [LocalizationHelper localizedStringForKey:@"First Launch Tips"] message: [LocalizationHelper localizedStringForKey:@"%@", tipText] preferredStyle:UIAlertControllerStyleAlert];
-
+    [CountdownAlertController showAlertIn:self
+                                    title:[LocalizationHelper localizedStringForKey:@"First Launch Tips"]
+                                  message:tipText
+                               withCancel:NO
+                              buttonTitle:[LocalizationHelper localizedStringForKey:@"Got it!"]
+                                countdown:16
+                               completion:^{}];
     
-    NSMutableParagraphStyle *paragraphStyle = [[NSMutableParagraphStyle alloc] init];
-    paragraphStyle.alignment = NSTextAlignmentLeft;
-
-    NSDictionary *attributes = @{
-        NSParagraphStyleAttributeName: paragraphStyle,
-        NSFontAttributeName: [UIFont systemFontOfSize:14]
-    };
-
-    NSAttributedString *attributedMessage = [[NSAttributedString alloc] initWithString:tipText
-                                                                             attributes:attributes];
-
-    // 使用 KVC 设置 attributedMessage（注意审核风险）
-    [tipsAlertController setValue:attributedMessage forKey:@"attributedMessage"];
-
-    // 添加确认按钮（初始禁用）
-    UIAlertAction *confirmAction = [UIAlertAction actionWithTitle:[LocalizationHelper localizedStringForKey:@"Got it! (15)"]
-                                                           style:UIAlertActionStyleDefault
-                                                         handler:^(UIAlertAction * _Nonnull action) {
-    }];
-    confirmAction.enabled = NO;
-    [tipsAlertController addAction:confirmAction];
-
-    // 显示弹窗
-    [self presentViewController:tipsAlertController animated:YES completion:nil];
-
-    // 使用dispatch_source_t实现精确倒计时
-    dispatch_source_t timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, dispatch_get_main_queue());
-    dispatch_source_set_timer(timer, DISPATCH_TIME_NOW, 1.0 * NSEC_PER_SEC, 0.1 * NSEC_PER_SEC);
-
-    dispatch_source_set_event_handler(timer, ^{
-        remainingSeconds--;
-
-        if (remainingSeconds <= 0) {
-            // 倒计时结束
-            dispatch_source_cancel(timer);
-            // 启用确认按钮
-            confirmAction.enabled = YES;
-            [confirmAction setValue:[LocalizationHelper localizedStringForKey:@"Got it!"] forKey:@"title"];
-        } else {
-            // 更新按钮标题和消息
-            [confirmAction setValue:[NSString stringWithFormat:[LocalizationHelper localizedStringForKey:@"Got it! (%ld)", remainingSeconds], (long)remainingSeconds] forKey:@"title"];
-        }
-    });
-
-    dispatch_resume(timer);
-
+    return;
 }
 
 - (void)updateTheme {
@@ -775,6 +741,7 @@
 }
 
 - (void)openWidgetLayoutTool{
+    [_streamView saveRelocatedWidgetViews];
     _streamView.widgetToolOpened = true;
     [self->_streamView disableOnScreenControls];
     [self->_streamView clearOnScreenWidgets]; // clear all onScreenKeyboardButtons before entering edit mode
@@ -785,6 +752,7 @@
 }
 
 - (void)switchWidgetProfile{
+    [_streamView saveRelocatedWidgetViews];
     _streamView.widgetToolOpened = true;
     [self->_streamView disableOnScreenControls];
     [self->_streamView clearOnScreenWidgets]; // clear all onScreenKeyboardButtons before entering edit mode
@@ -1063,6 +1031,7 @@
 - (void)applicationWillResignActive:(NSNotification *)notification {
     //[self.pipController startPictureInPicture];
     //sleep(1);
+    [_streamView saveRelocatedWidgetViews];
 
 #if !TARGET_OS_TV
 #endif
@@ -1143,6 +1112,7 @@
 
 - (void)expandSettingsView{
     self.mainFrameViewcontroller.settingsExpandedInStreamView = true; //notify mainFrameViewContorller that this is a setting expansion in stream view, some settings shall be disabled.
+    [_streamView saveRelocatedWidgetViews];
     [self.mainFrameViewcontroller expandSettingsView];
 }
 
@@ -1554,6 +1524,51 @@
     
     [dataMan saveData];
     [self reConfigStreamViewRealtime];
+}
+
+- (NSMutableDictionary *)startGyroUpdate:(OnScreenWidgetView *)sender yawFactor:(CGFloat)yawFactor pitchFactor:(CGFloat)pitchFactor rollFactor:(CGFloat)rollFactor{
+    NSMutableDictionary* gyroControlPreviousStatus = [NSMutableDictionary dictionary];
+
+    if(!_motionHandler.gyroControlStarted) [gyroControlPreviousStatus setObject:sender forKey:@"gyroControlStarter"];
+    [gyroControlPreviousStatus setObject:@(_motionHandler.widgetYawFactor) forKey:@"previousYawFactor"];
+    [gyroControlPreviousStatus setObject:@(_motionHandler.widgetPitchFactor) forKey:@"previousPitchFactor"];
+    [gyroControlPreviousStatus setObject:@(_motionHandler.widgetRollFactor) forKey:@"previousRollFactor"];
+    _motionHandler.widgetYawFactor = yawFactor;
+    _motionHandler.widgetPitchFactor = pitchFactor;
+    _motionHandler.widgetRollFactor = rollFactor;
+    [_motionHandler startGyroUpdate];
+
+    return gyroControlPreviousStatus;
+}
+
+
+- (NSMutableDictionary*)start:(CGFloat)yawFactor pitchFactor:(CGFloat)pitchFactor rollFactor:(CGFloat)rollFactor{
+    NSMutableDictionary* gyroControlPreviousStatus = [NSMutableDictionary dictionary];
+    if(!_motionHandler.gyroControlStarted){
+        [gyroControlPreviousStatus setObject:@(_motionHandler.gyroControlStarted) forKey:@"gyroStarted"];
+    }
+    [gyroControlPreviousStatus setObject:@(_motionHandler.widgetYawFactor) forKey:@"previousYawFactor"];
+    [gyroControlPreviousStatus setObject:@(_motionHandler.widgetPitchFactor) forKey:@"previousPitchFactor"];
+    [gyroControlPreviousStatus setObject:@(_motionHandler.widgetRollFactor) forKey:@"previousRollFactor"];
+
+    _motionHandler.widgetYawFactor = yawFactor;
+    _motionHandler.widgetPitchFactor = pitchFactor;
+    _motionHandler.widgetRollFactor = rollFactor;
+    [_motionHandler startGyroUpdate];
+    
+    return gyroControlPreviousStatus;
+}
+
+- (void)startAccelUpdate{
+    [_motionHandler startAccelUpdate];
+}
+
+- (void)stopGyroUpdateWithInterruptTouchInput:(BOOL)interruption{
+    [_motionHandler stopGyroUpdateWithInterruptTouchInput:interruption];
+}
+
+- (void)stopAccelUpdate{
+    [_motionHandler stopAccelUpdate];
 }
 
 #if !TARGET_OS_TV

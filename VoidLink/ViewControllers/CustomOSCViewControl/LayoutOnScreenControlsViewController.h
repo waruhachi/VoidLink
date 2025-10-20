@@ -21,7 +21,7 @@ NS_ASSUME_NONNULL_BEGIN
 /**
  This view controller provides the user interface which allows the user to position on screen controller buttons anywhere they'd like on the screen. It also provides the user with the abilities to undo a change, save the on screen controller layout for later retrieval, and load previously saved controller layouts
  */
-@interface LayoutOnScreenControlsViewController : UIViewController <OnScreenWidgetGuidelineUpdateDelegate>
+@interface LayoutOnScreenControlsViewController : UIViewController <OnScreenWidgetGuidelineUpdateDelegate,UITextFieldDelegate>
 - (void)profileRefresh;
 - (void)reloadOnScreenWidgetViews;
 - (void)presentProfilesTableView;
@@ -78,6 +78,14 @@ NS_ASSUME_NONNULL_BEGIN
 @property (strong, nonatomic) IBOutlet UISlider *sensitivityYSlider;
 @property (strong, nonatomic) IBOutlet UIStackView *sensitivityYStack;
 
+@property (strong, nonatomic) IBOutlet UILabel *yawFactorLabel;
+@property (strong, nonatomic) IBOutlet UISlider *yawFactorSlider;
+@property (strong, nonatomic) IBOutlet UIStackView *yawFactorStack;
+@property (strong, nonatomic) IBOutlet UILabel *pitchFactorLabel;
+@property (strong, nonatomic) IBOutlet UISlider *pitchFactorSlider;
+@property (strong, nonatomic) IBOutlet UIStackView *pitchFactorStack;
+
+
 @property (strong, nonatomic) IBOutlet UIStackView *decelerationRateStack;
 @property (strong, nonatomic) IBOutlet UILabel *decelerationRateLabel;
 @property (strong, nonatomic) IBOutlet UISlider *decelerationRateSlider;
@@ -94,13 +102,13 @@ NS_ASSUME_NONNULL_BEGIN
 @property (strong, nonatomic) IBOutlet UIStackView *mouseDownButtonStack;
 @property (strong, nonatomic) IBOutlet UISegmentedControl *mouseButtonDownSelector;
 
-@property (strong, nonatomic) IBOutlet UIStackView *triggerModeStack;
-@property (strong, nonatomic) IBOutlet UISegmentedControl *triggerModeSelector;
+@property (strong, nonatomic) IBOutlet UIStackView *buttonModeStack;
+@property (strong, nonatomic) IBOutlet UISegmentedControl *buttonModeSelector;
 
 @property (strong, nonatomic) IBOutlet UIStackView *autoTapStack;
 @property (strong, nonatomic) IBOutlet UILabel *autoTapLabel;
-@property (strong, nonatomic) IBOutlet UISlider *autoTapSlider;
-
+// @property (strong, nonatomic) IBOutlet UISlider *autoTapSlider;
+@property (strong, nonatomic) IBOutlet UITextField *autoTapField;
 
 
 @property (weak, nonatomic) IBOutlet UIStackView *widgetPanelStack;
