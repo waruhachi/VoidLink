@@ -254,6 +254,52 @@
         }
       }
     },
+    " both set " : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : " 双键开关 "
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : " 雙鍵開關 "
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : " 雙鍵開關 "
+          }
+        }
+      }
+    },
+    " duplicated ! " : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : " 按键重复 ! "
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : " 按鍵重复 ! "
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : " 按鍵重复 !"
+          }
+        }
+      }
+    },
     "!ML_TEST_RESULT_INCONCLUSIVE" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -755,13 +801,13 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "透明度：%.2f"
+            "value" : "透明度: %.2f"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "透明度：%.2f"
+            "value" : "透明度: %.2f"
           }
         }
       }
@@ -808,6 +854,35 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "音訊"
+          }
+        }
+      }
+    },
+    "audioConfigStackTip" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "- Stereo: Stereo mode driven by the system audio engine. Offers better audio quality and continues playback when the screen is off.\n\n- Stereo (SDL): Stereo mode driven by the SDL engine. This mode is essentially equivalent to Moonlight-iOS audio. Playback cannot be maintained after the screen is turned off.\n\n- 5.1 / 7.1 Channels: both are driven by the SDL engine. Playback cannot be maintained after the screen is turned off. Available for iOS 18+."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "- 双声道：由系统音频引擎驱动的双声道模式。音质更好、熄屏可维持播放。\n\n- 双声道(SDL)：由SDL引擎驱动的双声道模式。此模式基本上等价于moonlight-iOS音频。熄屏后无法维持播放。\n\n- 5.1 / 7.1 声道：均为SDL引擎驱动。熄屏后无法维持播放。需 iOS 18 以上支持。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "- 雙聲道：由系統音訊引擎驅動的雙聲道模式。音質較佳，且在熄屏後仍可維持播放。\n\n- 雙聲道（SDL）：由 SDL 引擎驅動的雙聲道模式。此模式基本等同於 Moonlight-iOS 的音訊。熄屏後無法維持播放。\n\n5.1／7.1 聲道：皆由 SDL 引擎驅動。熄屏後無法維持播放，需 iOS 18 以上支援。"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "- 雙聲道：由系統音訊引擎驅動的雙聲道模式。音質較佳，且在熄屏後仍可維持播放。\n\n- 雙聲道（SDL）：由 SDL 引擎驅動的雙聲道模式。此模式基本等同於 Moonlight-iOS 的音訊。熄屏後無法維持播放。\n\n5.1／7.1 聲道：皆由 SDL 引擎驅動。熄屏後無法維持播放，需 iOS 18 以上支援。"
           }
         }
       }
@@ -1083,13 +1158,13 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "邊框寬度：%.2f"
+            "value" : "邊框寬度: %.2f"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "邊框寬度：%.2f"
+            "value" : "邊框寬度: %.2f"
           }
         }
       }
@@ -1205,6 +1280,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "指令"
+          }
+        }
+      }
+    },
+    "Component size: %.2f   " : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "组件大小: %.2f"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "組件大小: %.2f"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "組件大小: %.2f"
           }
         }
       }
@@ -1399,6 +1497,139 @@
         }
       }
     },
+    "Continue" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "继续"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "繼續"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "繼續"
+          }
+        }
+      }
+    },
+    "Controller" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手柄"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "控制器"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "控制器"
+          }
+        }
+      }
+    },
+    "controllerGyroSwitchButtonStackTip" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gyro toggle button: %@\nGyro hold-down button: %@\n\nThese buttons are able to switch DS4 gyro mapping on & off when enabled."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "陀螺仪切换按键: %@\n陀螺仪保持按键: %@\n\n以上按键被启用后，也可用于启动/暂停DS4陀螺仪映射"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "陀螺儀切換按鍵: %@\n陀螺儀保持按鍵: %@\n\n以上按鍵啟用後，也可用於啟動／暫停 DS4 陀螺儀映射。"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "陀螺儀切換按鍵: %@\n陀螺儀保持按鍵: %@\n\n以上按鍵啟用後，也可用於啟動／暫停 DS4 陀螺儀映射。"
+          }
+        }
+      }
+    },
+    "controllerMouseExpoStackTip" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The larger this value is, the flatter the curve becomes near the zero point (center). When set to 1, it is completely linear."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "该值越大，接近零点(中心点)的曲线越平缓。为 1 时则为完全线性。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "該值越大，接近零點（中心點）的曲線越平緩。為 1 時則為完全線性。"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "該值越大，接近零點（中心點）的曲線越平緩。為 1 時則為完全線性。"
+          }
+        }
+      }
+    },
+    "controllerToMouseStackTip" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Long press to switch to mouse mode: %@\nStick for moving mouse pointer: %@\nMouse left button: %@\nMouse right button: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "长按切换鼠标模式: %@\n控制鼠标的摇杆: %@\n鼠标左键: %@\n鼠标右键: %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "長按切換滑鼠模式: %@\n控制滑鼠的搖桿: %@\n滑鼠左鍵: %@\n滑鼠右鍵: %@"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "長按切換滑鼠模式: %@\n控制滑鼠的搖桿: %@\n滑鼠左鍵: %@\n滑鼠右鍵: %@"
+          }
+        }
+      }
+    },
     "Create New" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1418,6 +1649,35 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "建立新的"
+          }
+        }
+      }
+    },
+    "ctrlDownForPinchStackTip" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "When disabled, pinch gesture equals vertical scrolling. Works for some games that use vertical scrolling for zooming."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关闭此选项时, 捏合缩手势相当于垂直滚动. 对一些使用垂直滚动缩放画面的游戏有效."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "關閉此選項時, 捏合縮手勢相當於垂直滾動. 對一些使用垂直滾動縮放畫面的遊戲有效."
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "關閉此選項時, 捏合縮手勢相當於垂直滾動. 對一些使用垂直滾動縮放畫面的遊戲有效."
           }
         }
       }
@@ -1491,25 +1751,48 @@
         }
       }
     },
-    "Deceleration Rate: %.3f  " : {
+    "DecelerationRateX: %.3f  " : {
       "extractionState" : "manual",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "减速率: %.3f  "
+            "value" : "减速率X: %.3f  "
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "減速率：%.3f  "
+            "value" : "減速率X: %.3f  "
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "減速率：%.3f  "
+            "value" : "減速率X: %.3f  "
+          }
+        }
+      }
+    },
+    "DecelerationRateY: %.3f  " : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "减速率Y: %.3f  "
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "減速率Y: %.3f  "
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "減速率Y: %.3f  "
           }
         }
       }
@@ -1533,6 +1816,35 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "刪除"
+          }
+        }
+      }
+    },
+    "delayLeftClickStackTip" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Optimized for game “Old School RuneScape”."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "对 OSRS (Old School RuneScape) 有效"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "對 OSRS（Old School RuneScape）有效"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "對 OSRS（Old School RuneScape）有效"
           }
         }
       }
@@ -1606,6 +1918,52 @@
         }
       }
     },
+    "Disable hold-down button" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "禁用保持键"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "禁用保持鍵"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "禁用保持鍵"
+          }
+        }
+      }
+    },
+    "Disable press-toggle button" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "禁用切换键"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "禁用切換鍵"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "禁用切換鍵"
+          }
+        }
+      }
+    },
     "Disconnect" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1652,6 +2010,29 @@
         }
       }
     },
+    "Down" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下"
+          }
+        }
+      }
+    },
     "Drag and drop buttons onto this trash can to remove them from the interface" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1694,6 +2075,35 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "漂移修正"
+          }
+        }
+      }
+    },
+    "edgeSlidingSensitivityStackTip" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Higher sensitivity make it easier to trigger settings menu & tool box gestures, but will widen the untouchable screen edge area."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更高的灵敏度使设置菜单和工具箱手势更易于触发，但同时增加了屏幕边缘触控无响应区域的宽度。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更高的靈敏度使設定選單和工具箱手勢更容易觸發，但同時也會增加螢幕邊緣觸控無反應區域的寬度。"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更高的靈敏度使設定選單和工具箱手勢更容易觸發，但同時也會增加螢幕邊緣觸控無反應區域的寬度。"
           }
         }
       }
@@ -2142,6 +2552,29 @@
         }
       }
     },
+    "Finished" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "完成"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "完成"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "完成"
+          }
+        }
+      }
+    },
     "Finished!" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2407,31 +2840,25 @@
         }
       }
     },
-    "gyroModeStackDoc" : {
+    "Gyro button on controller" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "https://voidlink.yuque.com/org-wiki-voidlink-znirha/fa3tgr/uscwmv3vz8g30rmk"
-          }
-        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "https://voidlink.yuque.com/org-wiki-voidlink-znirha/fa3tgr/bz6ggagp0ly4loq3"
+            "value" : "手柄陀螺仪按键"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "https://voidlink.yuque.com/org-wiki-voidlink-znirha/fa3tgr/bz6ggagp0ly4loq3"
+            "value" : "手柄陀螺儀按鍵"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "https://voidlink.yuque.com/org-wiki-voidlink-znirha/fa3tgr/bz6ggagp0ly4loq3"
+            "value" : "手柄陀螺儀按鍵"
           }
         }
       }
@@ -2563,6 +2990,52 @@
         }
       }
     },
+    "Highlight alpha: %.2f" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高亮透明度: %.2f"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高亮透明度: %.2f"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高亮透明度: %.2f"
+          }
+        }
+      }
+    },
+    "Highlight size: %.2f" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高亮尺寸: %.2f"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高亮尺寸: %.2f"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高亮尺寸: %.2f"
+          }
+        }
+      }
+    },
     "Host information updated" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2667,13 +3140,13 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "指示器偏移：%.0f"
+            "value" : "指示器偏移: %.0f"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "指示器偏移：%.0f"
+            "value" : "指示器偏移: %.0f"
           }
         }
       }
@@ -2885,6 +3358,52 @@
         }
       }
     },
+    "Left" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "左"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "左"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "左"
+          }
+        }
+      }
+    },
+    "Left stick" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "左摇杆"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "左搖桿"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "左搖桿"
+          }
+        }
+      }
+    },
     "Load" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3047,6 +3566,58 @@
         }
       }
     },
+    "Map controller to mouse" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手柄映射为鼠标"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手柄映射為滑鼠"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手柄映射為滑鼠"
+          }
+        }
+      }
+    },
+    "mapGyroToStackTip" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "- To map gyro directly to mouse/stick, must turn off DS4 gyro mapping in “Controller” section.\n\n- All settings in “Motion Control” section are saved with on-screen widget profile, which can be selected & managed in the right edge slide toolbox menu.\n\n- Motion control can be turned on & off by controller buttons or on-screen buttons"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "- 关闭“手柄”菜单分区的DS4陀螺仪映射后， 方可将陀螺仪直接映射为手柄或鼠标。\n\n- “体感控制”菜单分区的所有设置均保存在屏显控件配置中，可在右边缘滑出的工具箱菜单中切换。\n\n- 体感控制陀螺仪可由手柄按键或屏显按键开关。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "- 關閉「手柄」選單分區的 DS4 陀螺儀映射後，方可將陀螺儀直接映射為手柄或滑鼠。\n\n- 「體感控制」選單分區的所有設定皆儲存在螢幕顯示小工具配置中，可在右邊緣滑出的工具箱選單中切換。\n\n- 體感控制陀螺儀可由手把按鍵或螢幕顯示按鍵開關。"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "- 關閉「手柄」選單分區的 DS4 陀螺儀映射後，方可將陀螺儀直接映射為手柄或滑鼠。\n\n- 「體感控制」選單分區的所有設定皆儲存在螢幕顯示小工具配置中，可在右邊緣滑出的工具箱選單中切換。\n\n- 體感控制陀螺儀可由手把按鍵或螢幕顯示按鍵開關。"
+          }
+        }
+      }
+    },
     "micPermissionTip" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3095,6 +3666,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "麥克風權限"
+          }
+        }
+      }
+    },
+    "Minimum offset: %.0f" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最小偏移量: %.0f"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最小偏移量: %.0f"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最小偏移量: %.0f"
           }
         }
       }
@@ -3239,6 +3833,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "滑鼠指標速度：%d%%"
+          }
+        }
+      }
+    },
+    "Move the stick you wish to use for mouse control. Another stick will be used for vertical & horizontal scroll." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移动用于控制鼠标指针的摇杆。另一侧的摇杆将用于控制垂直、水平滚动。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移動用於控制滑鼠指標的搖桿。另一側的搖桿將用於控制垂直、水平滾動。"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移動用於控制滑鼠指標的搖桿。另一側的搖桿將用於控制垂直、水平滾動。"
           }
         }
       }
@@ -3458,6 +4075,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "沒有可復原的內容"
+          }
+        }
+      }
+    },
+    "Null" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無"
           }
         }
       }
@@ -3848,6 +4488,98 @@
         }
       }
     },
+    "Paddle1" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "背键1"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "背鍵1"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "背鍵1"
+          }
+        }
+      }
+    },
+    "Paddle2" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "背键2"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "背鍵2"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "背鍵2"
+          }
+        }
+      }
+    },
+    "Paddle3" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "背键3"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "背鍵3"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "背鍵3"
+          }
+        }
+      }
+    },
+    "Paddle4" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "背键4"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "背鍵4"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "背鍵4"
+          }
+        }
+      }
+    },
     "Pairing" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4021,6 +4753,35 @@
         }
       }
     },
+    "physicaStickMinOffsetTip" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This is saved in onscreen widget profile, which can be selected & managed in toolbox menu slide from the right screen edge."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此项设置保存在屏显控件配置方案中， 可在屏幕右边缘滑出的工具箱菜单中切换。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此項設定儲存在螢幕小工具配置方案中，可在螢幕右邊緣滑出的工具箱選單中切換。"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此項設定儲存在螢幕小工具配置方案中，可在螢幕右邊緣滑出的工具箱選單中切換。"
+          }
+        }
+      }
+    },
     "pipStackTip" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4032,19 +4793,19 @@
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "- App切后台时自动开启画中画， 需要打开 iOS 设置-> 多任务与手势 -> 自动开启画中画。\n\n- 画中画可在工具箱菜单中手动开启。\n\n- 画中画时长由 “其他 -> 后台会话” 设置项控制\n\n- 仅 iOS15+ 支持画中画。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "- App 切到背景時會自動啟用子母畫面，需開啟 iOS 「設定」→「多工與手勢」→「自動啟用子母畫面」。\n\n- 子母畫面也可透過工具箱選單手動啟用。\n\n- 子母畫面顯示時長由「其他」→「背景執行」設定項目控制。\n\n- 子母畫面功能自 iOS 15 起支援。"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "- App 切到背景時會自動啟用子母畫面，需開啟 iOS 「設定」→「多工與手勢」→「自動啟用子母畫面」。\n\n- 子母畫面也可透過工具箱選單手動啟用。\n\n- 子母畫面顯示時長由「其他」→「背景執行」設定項目控制。\n\n- 子母畫面功能自 iOS 15 起支援。"
           }
         }
@@ -4223,7 +4984,7 @@
         },
         "zh-Hant" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "觸控靈敏度：調整螢幕右半邊觸控點的移動速度，讓您可以控制遊戲內攝影機的靈敏度（適用於《原神》和《崩壞：星穹鐵道》）。詳情請參閱線上文件。"
           }
         },
@@ -4254,6 +5015,121 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "與電腦的連線品質不佳"
+          }
+        }
+      }
+    },
+    "Press a button for keeping gyro active by holding down.\nYou can have 2 buttons for both press-toggle & hold-down switch." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按下保持陀螺仪模式的手柄按键。\n你可以为陀螺仪切换和保持各设置一个按键。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按下保持陀螺儀模式的手把按鍵。\n您可以為陀螺儀切換和保持各設置一個按鍵。"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按下保持陀螺儀模式的手把按鍵。\n您可以為陀螺儀切換和保持各設置一個按鍵。"
+          }
+        }
+      }
+    },
+    "Press a button for switching gyro on & off with a press.\nYou can have 2 buttons for both press-toggle & hold-down switch." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按下切换陀螺仪模式的手柄按键。\n你可以为陀螺仪切换和保持各设置一个按键。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按下切換陀螺儀模式的手把按鍵。\n您可以為陀螺儀切換和保持各設置一個按鍵。"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按下切換陀螺儀模式的手把按鍵。\n您可以為陀螺儀切換和保持各設置一個按鍵。"
+          }
+        }
+      }
+    },
+    "Press a button for switching to controller mouse mode (long press for 1 second during streaming)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按下用于切换手柄鼠标模式的按键(串流时长按1秒切换)"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按下用於切換手柄滑鼠模式的按鍵(串流時長按 1 秒切換)"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按下用於切換手柄滑鼠模式的按鍵(串流時長按 1 秒切換)"
+          }
+        }
+      }
+    },
+    "Press the button for mouse left button" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按下用于操作鼠标左键的按键"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按下用於操作滑鼠左鍵的按鍵"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按下用於操作滑鼠左鍵的按鍵"
+          }
+        }
+      }
+    },
+    "Press the button for mouse right button" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按下用于操作鼠标右键的按键"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按下用於操作滑鼠右鍵的按鍵"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按下用於操作滑鼠右鍵的按鍵"
           }
         }
       }
@@ -4586,6 +5462,64 @@
         }
       }
     },
+    "relativeTouchSlideThresholdStackLink" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "https://voidlink.yuque.com/org-wiki-voidlink-znirha/fa3tgr/egk4t4550owmomda"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "https://voidlink.yuque.com/org-wiki-voidlink-znirha/fa3tgr/fqd6l1kgt482on8a"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "https://voidlink.yuque.com/org-wiki-voidlink-znirha/fa3tgr/fqd6l1kgt482on8a"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "https://voidlink.yuque.com/org-wiki-voidlink-znirha/fa3tgr/fqd6l1kgt482on8a"
+          }
+        }
+      }
+    },
+    "relativeTouchSlideThresholdStackTip" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fixes mouse cursor jump on initial move of touchPad mode."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用于修复触控板模式下鼠标指针刚开始移动时会突然跳一下的问题。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用於修復觸控板模式下滑鼠指標剛開始移動時會突然跳一下的問題。"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用於修復觸控板模式下滑鼠指標剛開始移動時會突然跳一下的問題。"
+          }
+        }
+      }
+    },
     "Remove" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4799,6 +5733,35 @@
         }
       }
     },
+    "reverseHoldButtonStackTip" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "When enabled, the gyro-hold button becomes a gyro-pause button: holding it down pauses the gyro, and releasing it reactivates it."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "启用该项后，陀螺仪保持按键变为陀螺仪暂停按键。按住暂停陀螺仪，松开重新启动陀螺仪。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "啟用此項後，陀螺儀保持按鍵將變為陀螺儀暫停按鍵。按住可暫停陀螺儀，鬆開則重新啟動陀螺儀。"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "啟用此項後，陀螺儀保持按鍵將變為陀螺儀暫停按鍵。按住可暫停陀螺儀，鬆開則重新啟動陀螺儀。"
+          }
+        }
+      }
+    },
     "right" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4818,6 +5781,75 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "右"
+          }
+        }
+      }
+    },
+    "Right" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "右"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "右"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "右"
+          }
+        }
+      }
+    },
+    "Right stick" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "右摇杆"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "右搖桿"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "右搖桿"
+          }
+        }
+      }
+    },
+    "Roll factor: %.2f" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "滚转系数: %.2f"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "滾轉係數: %.2f"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "滾轉係數: %.2f"
           }
         }
       }
@@ -5001,6 +6033,29 @@
         }
       }
     },
+    "Sensitivity: %.2f" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "灵敏度: %.2f"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "靈敏度: %.2f"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "靈敏度: %.2f"
+          }
+        }
+      }
+    },
     "SensitivityX: %.2f" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5013,13 +6068,13 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "靈敏度X：%.2f"
+            "value" : "靈敏度X: %.2f"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "靈敏度X：%.2f"
+            "value" : "靈敏度X: %.2f"
           }
         }
       }
@@ -5036,13 +6091,13 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "靈敏度Y：%.2f"
+            "value" : "靈敏度Y: %.2f"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "靈敏度Y：%.2f"
+            "value" : "靈敏度Y: %.2f"
           }
         }
       }
@@ -5233,6 +6288,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "串流中選單的滑動距離：%.2f * 螢幕寬度"
+          }
+        }
+      }
+    },
+    "Slide threshold: %.1f" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "滑动阈值: %.2f"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "滑動閾值: %.2f"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "滑動閾值: %.2f"
           }
         }
       }
@@ -5704,25 +6782,25 @@
         }
       }
     },
-    "Touch & Controller" : {
+    "Touch Control" : {
       "extractionState" : "manual",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "触屏与手柄"
+            "value" : "触控"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "觸控與控制器"
+            "value" : "触控"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "觸控與控制器"
+            "value" : "触控"
           }
         }
       }
@@ -5894,6 +6972,29 @@
         }
       }
     },
+    "Touchpad button" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "触摸板按键"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "触摸板按键"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "触摸板按键"
+          }
+        }
+      }
+    },
     "Undo" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5965,6 +7066,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "此裝置不支援"
+          }
+        }
+      }
+    },
+    "Up" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上"
           }
         }
       }
@@ -6116,6 +7240,29 @@
         }
       }
     },
+    "Waiting for controller..." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "等待手柄接入……"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "等待控制器接入……"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "等待控制器接入……"
+          }
+        }
+      }
+    },
     "Wake PC" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6135,6 +7282,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "喚醒電腦"
+          }
+        }
+      }
+    },
+    "Walkmode threshold: %.0f   " : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "行走模式阈值: %.0f   "
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "行走模式閾值: %.0f   "
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "行走模式閾值: %.0f   "
           }
         }
       }
@@ -6162,7 +7332,7 @@
         },
         "zh-HK" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "聯絡開發者 True砖家"
           }
         }
@@ -6210,6 +7380,35 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "您的網路連線效能不佳。請降低您的視訊位元率設定或嘗試更快的連線。"
+          }
+        }
+      }
+    },
+    "yourMotionControlSoution" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "https://voidlink.yuque.com/org-wiki-voidlink-znirha/fa3tgr/watpxdpsogirwie0"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "https://voidlink.yuque.com/org-wiki-voidlink-znirha/fa3tgr/iy4zgh86odhfgf6h"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "https://voidlink.yuque.com/org-wiki-voidlink-znirha/fa3tgr/iy4zgh86odhfgf6h"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "https://voidlink.yuque.com/org-wiki-voidlink-znirha/fa3tgr/iy4zgh86odhfgf6h"
           }
         }
       }

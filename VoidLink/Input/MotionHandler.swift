@@ -10,22 +10,34 @@ import Foundation
 import CoreMotion
 
 @objc public protocol OnScreenWidgetStickMixedInputDelegate: AnyObject {
-    func mixRightStickAndGyroInput(x: CGFloat, y: CGFloat)
-    func mixLeftStickAndGyroInput(x: CGFloat, y: CGFloat)
+    func mixOnScreenRightStickAndGyroInput(x: CGFloat, y: CGFloat)
+    func mixOnScreenLeftStickAndGyroInput(x: CGFloat, y: CGFloat)
     func gyroMixInputStarted() -> Bool
 }
 
 @objc class MotionHandler: NSObject, OscInstanceReceiverDelegate, OnScreenWidgetStickMixedInputDelegate{
-    public func mixRightStickAndGyroInput(x: CGFloat, y: CGFloat) {
+    public func mixOnScreenRightStickAndGyroInput(x: CGFloat, y: CGFloat) {
         rightStickTouchInputX = x
         rightStickTouchInputY = y
     }
     
-    public func mixLeftStickAndGyroInput(x: CGFloat, y: CGFloat) {
+    public func mixOnScreenLeftStickAndGyroInput(x: CGFloat, y: CGFloat) {
+        // rollIntegral = 0
         leftStickTouchInputX = x
         leftStickTouchInputY = y
     }
     
+    @objc public func mixPhysicalRightStickAndGyroInput(x: CGFloat, y: CGFloat) {
+        rightStickPhysicalInputX = oscProfile.synthesizePhysicalStick ? x : 0
+        rightStickPhysicalInputY = oscProfile.synthesizePhysicalStick ? y : 0
+    }
+    
+    @objc public func mixPhysicalLeftStickAndGyroInput(x: CGFloat, y: CGFloat) {
+        // rollIntegral = 0
+        leftStickPhysicalInputX = oscProfile.synthesizePhysicalStick ? x : 0
+        leftStickPhysicalInputY = oscProfile.synthesizePhysicalStick ? y : 0
+    }
+
     public func gyroMixInputStarted() -> Bool {
         return gyroIsWorking
     }
@@ -70,14 +82,15 @@ import CoreMotion
     public var gyroStarter:Any?
     private var windowScene: Any?
     
-    private var onScreenControls: OnScreenControls = OnScreenControls.init()
+    @objc public var onScreenControls: OnScreenControls = OnScreenControls.init()
     public let stickMaxOffset: CGFloat = 0x7FFE
     private var stickInputScale: CGFloat = 35
     
     private var yaw:Double = 0
     private var pitch:Double = 0
     private var roll:Double = 0
-    
+    private var rollIntegral:Double = 0
+
     private var isCalibrating: Bool = false
     private var sumX: Double = 0
     private var sumY: Double = 0
@@ -95,6 +108,13 @@ import CoreMotion
     
     private var leftStickTouchInputX:Double = 0
     private var leftStickTouchInputY:Double = 0
+    
+    private var rightStickPhysicalInputX:Double = 0
+    private var rightStickPhysicalInputY:Double = 0
+    public var gyroToStickOffset:CGVector = CGVector(dx: 0, dy: 0)
+    
+    private var leftStickPhysicalInputX:Double = 0
+    private var leftStickPhysicalInputY:Double = 0
 
     var updateInterval: TimeInterval = 1.0 / 120.0 {
         didSet {
@@ -124,6 +144,7 @@ import CoreMotion
         self.widgetYawFactor = yawFactor
         self.widgetPitchFactor = pitchFactor
         self.widgetRollFactor = rollFactor
+        print("self.widgetRollFactor \(self.widgetRollFactor)")
         if self.gyroStarter == nil {
             self.gyroStarter = sender
             if sender.motionControlButtonString != "GYROPAUSE" {self.startGyroUpdate()}
@@ -131,6 +152,16 @@ import CoreMotion
         else if sender.motionControlButtonString == "GYROPAUSE" {
             self.startGyroUpdate()
         }
+    }
+    
+    @objc public func startGyroByControllerButton(){
+        self.previousWidgetYawFactor = self.widgetYawFactor
+        self.previousWidgetPitchFactor = self.widgetPitchFactor
+        self.previousWidgetRollFactor = self.widgetRollFactor
+        self.widgetYawFactor = 1
+        self.widgetPitchFactor = 1
+        self.widgetRollFactor = 1
+        self.startGyroUpdate()
     }
     
     /// 启动传感器数据更新
@@ -162,15 +193,15 @@ import CoreMotion
     }
     
     /// 停止更新
-    private var interruptTouchInput:Bool = false
+    private var interruptNoneGyroInput:Bool = false
 
-    @objc public func stopGyroUpdate(interruptTouchInput:Bool=false) {
+    @objc public func stopGyroUpdate(interruptNoneGyroInput:Bool=false, resetLeftStick:Bool=false) {
         gyroControlStarted = false
         gyroIsWorking = false
         if motionManager.isGyroActive{
             motionManager.stopGyroUpdates()
         }
-        self.clearGyroInput(interruptTouchInput: interruptTouchInput)
+        self.clearGyroInput(interruptNonGyroInput:interruptNoneGyroInput, resetLeftStick:resetLeftStick)
     }
     
     @objc public func stopAccelUpdate() {
@@ -257,7 +288,7 @@ import CoreMotion
         }
         
         if !gyroControlStarted {
-            self.clearGyroInput(interruptTouchInput: interruptTouchInput)
+            self.clearGyroInput(interruptNonGyroInput: interruptNoneGyroInput)
             print("Gyro: stopped")
             return
         }
@@ -272,34 +303,43 @@ import CoreMotion
                 
         if oscProfile.mapGyroTo == MapGyroTo.mapGyroToControllerStick {
             if oscProfile.yawPitchToRightStick {
-                yaw = rightStickTouchInputX + gyroInputToStickInput(input:yawSource*sensitvityYaw*widgetYawFactor*10)
+                gyroToStickOffset.dx = gyroInputToStickInput(input:yawSource*sensitvityYaw*widgetYawFactor*10)
+                yaw = rightStickTouchInputX + rightStickPhysicalInputX + gyroToStickOffset.dx
                 yaw = self.clampStickInput(input: yaw)
-                yaw = (yaw >= 0 ? 1.0 : -1.0) * gyroToStickMinOffset + (self.stickMaxOffset - gyroToStickMinOffset) * (yaw/self.stickMaxOffset)
                 
-                pitch = rightStickTouchInputY - gyroInputToStickInput(input:pitchSource*sensitvityPitch*widgetPitchFactor*10)
+                gyroToStickOffset.dy = -gyroInputToStickInput(input:pitchSource*sensitvityPitch*widgetPitchFactor*10)
+                pitch = rightStickTouchInputY + rightStickPhysicalInputY + gyroToStickOffset.dy
                 pitch = self.clampStickInput(input: pitch)
-                pitch = (pitch >= 0 ? 1.0 : -1.0) * gyroToStickMinOffset + (self.stickMaxOffset - gyroToStickMinOffset) * (pitch/self.stickMaxOffset)
-
-                self.onScreenControls.sendRightStickTouchPadEvent(yaw, pitch)
+                
+                let offsetVector = ControllerUtil.compensated(offsetVector: CGVector(dx: yaw, dy: pitch), minOffset: gyroToStickMinOffset)
+                
+                self.onScreenControls.sendRightStickTouchPadEvent(offsetVector.dx, offsetVector.dy)
             }
             if oscProfile.rollToLeftStick {
-                roll = leftStickTouchInputX + gyroInputToStickInput(input:rollSource*sensitvityRoll*widgetRollFactor*10)
-                roll = self.clampStickInput(input: roll)
-                roll = (roll >= 0 ? 1.0 : -1.0) * gyroToStickMinOffset + (self.stickMaxOffset - gyroToStickMinOffset) * (roll/self.stickMaxOffset)
+                roll = gyroInputToStickInput(input:rollSource*sensitvityRoll*widgetRollFactor*0.2)
+                rollIntegral = rollIntegral + roll
                 
-                self.onScreenControls.sendLeftStickTouchPadEvent(roll, leftStickTouchInputY)
+                let mixedLeftStickOffsetX = self.clampStickInput(input: rollIntegral+leftStickTouchInputX+leftStickPhysicalInputX)
+                let mixedLeftStickOffsetY = self.clampStickInput(input: leftStickTouchInputY+leftStickPhysicalInputY)
+
+                let offsetVector = ControllerUtil.compensated(offsetVector: CGVector(dx: mixedLeftStickOffsetX, dy: mixedLeftStickOffsetY), minOffset: gyroToStickMinOffset)
+                
+                self.onScreenControls.sendLeftStickTouchPadEvent(offsetVector.dx, offsetVector.dy)
             }
         }
 }
     
-    private func clearGyroInput(interruptTouchInput:Bool){
+    private func clearGyroInput(interruptNonGyroInput:Bool, resetLeftStick:Bool=false){
         if oscProfile.yawPitchToRightStick{
-            self.onScreenControls.sendRightStickTouchPadEvent(rightStickTouchInputX-yawBias, rightStickTouchInputY-pitchBias)
+            self.onScreenControls.sendRightStickTouchPadEvent(rightStickPhysicalInputX+rightStickTouchInputX-yawBias, rightStickPhysicalInputY+rightStickTouchInputY-pitchBias)
         }
         if oscProfile.rollToLeftStick{
-            self.onScreenControls.sendLeftStickTouchPadEvent(leftStickTouchInputX-rollBias, leftStickTouchInputY)
+            if resetLeftStick {
+                rollIntegral = 0
+                self.onScreenControls.sendLeftStickTouchPadEvent(leftStickPhysicalInputX+leftStickTouchInputX-rollBias,leftStickPhysicalInputY+leftStickTouchInputY)
+            }
         }
-        if(interruptTouchInput){
+        if(interruptNonGyroInput){
             self.onScreenControls.clearLeftStickTouchPadFlag()
             self.onScreenControls.clearRightStickTouchPadFlag()
         }

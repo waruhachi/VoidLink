@@ -42,6 +42,7 @@ extern int ff_isom_write_av1c(AVIOContext *pb, const uint8_t *buf, int size,
     AVSampleBufferDisplayLayer* _displayLayer;
     int _videoFormat;
     int _frameRate;
+    BOOL _fullRange;
 
     NSMutableArray *_parameterSetBuffers;
     NSData *_masteringDisplayColorVolume;
@@ -114,7 +115,9 @@ extern int ff_isom_write_av1c(AVIOContext *pb, const uint8_t *buf, int size,
 {
     NSLog(@"initializing video decoder %f", CACurrentMediaTime());
     self = [super init];
-
+    
+    appDidEnterBackgroundWithoutPip = false;
+    
     _sq = dispatch_queue_create("com.moonlight.VideoDecoderRenderer",
                                 dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INTERACTIVE, 0));
 
@@ -148,10 +151,11 @@ extern int ff_isom_write_av1c(AVIOContext *pb, const uint8_t *buf, int size,
 
 # pragma mark DisplayLink vsync callback
 
-- (void)setupWithVideoFormat:(int)videoFormat width:(int)videoWidth height:(int)videoHeight frameRate:(int)frameRate
+- (void)setupWithVideoFormat:(int)videoFormat width:(int)videoWidth height:(int)videoHeight frameRate:(int)frameRate fullRange:(BOOL)fullRange
 {
     self->_videoFormat = videoFormat;
     self->_frameRate = frameRate;
+    self->_fullRange = fullRange;
 
     // reset plot data in case we've already used it for a previous renderer
     [[ImGuiPlots sharedInstance] clearData];
@@ -220,10 +224,9 @@ extern int ff_isom_write_av1c(AVIOContext *pb, const uint8_t *buf, int size,
 #else
     NSNumber *pixelFormat = nil;
     if (self->_videoFormat & VIDEO_FORMAT_MASK_YUV444) {
-        pixelFormat = @(kCVPixelFormatType_444YpCbCr10BiPlanarFullRange);
-    }
-    else {
-        pixelFormat = @(kCVPixelFormatType_420YpCbCr10BiPlanarFullRange);
+        pixelFormat = self->_fullRange ? @(kCVPixelFormatType_444YpCbCr10BiPlanarFullRange) : @(kCVPixelFormatType_444YpCbCr10BiPlanarVideoRange);
+    } else {
+        pixelFormat = self->_fullRange ? @(kCVPixelFormatType_420YpCbCr10BiPlanarFullRange) : @(kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange);
     }
     NSMutableDictionary *destinationPixelBufferAttributes = [@{
         (id)kCVPixelBufferPixelFormatTypeKey : pixelFormat
@@ -263,6 +266,7 @@ int DrSubmitDecodeUnit(PDECODE_UNIT decodeUnit);
 // DisplayLink calls us every vsync we we try to present the most recent frame. We try to maintain a user-configurable buffer
 // of 1-5 frames. If the buffer is full, every other frame is dropped which just appears to the user as a lower framerate stream.
 - (void)renderModeAVSB:(CADisplayLink *)link {
+    
     CFTimeInterval start = link.timestamp;
     CFTimeInterval deadline = link.targetTimestamp;
     static CFTimeInterval lastTargetLocal = 0.0f;
@@ -326,6 +330,8 @@ int DrSubmitDecodeUnit(PDECODE_UNIT decodeUnit);
 // Legacy frame pacing callback - matches upstream/Integration behavior exactly
 - (void)displayLinkCallback:(CADisplayLink *)sender
 {
+    if(appDidEnterBackgroundWithoutPip) return;
+    
     VIDEO_FRAME_HANDLE handle;
     PDECODE_UNIT du;
     
@@ -374,7 +380,7 @@ int DrSubmitDecodeUnit(PDECODE_UNIT decodeUnit);
         Log(LOG_I, @"Setting timebase for stream to %d / %d", pts.value, pts.timescale);
     }
 
-    [self->_displayLayer enqueueSampleBuffer:frame.sampleBuffer];
+    if(!appDidEnterBackgroundWithoutPip) [self->_displayLayer enqueueSampleBuffer:frame.sampleBuffer];
 
 #ifdef DISPLAYLINK_VERBOSE
     // Some OS-level metrics I'm not sure what to do with

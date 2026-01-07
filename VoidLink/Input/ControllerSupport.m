@@ -11,7 +11,7 @@
 
 #import "ControllerSupport.h"
 #import "VoidController.h"
-
+#import "VoidLink-Swift.h"
 #import "OnScreenControls.h"
 
 #import "DataManager.h"
@@ -50,11 +50,34 @@ static const double MOUSE_SPEED_DIVISOR = 1.25;
     float accumulatedScrollX;
     float accumulatedScrollY;
     
+    int _controllerMouseSwitch;
+    bool _mouseSwitchButtonPressed;
+    bool _mouseSwitchButtonBeingClicked;
+    NSTimeInterval mouseSwitchDownTimestamp;
+    int _controllerMouseLeftButton;
+    int _controllerMouseRightButton;
+    ControllerMouseStick _controllerMouseStick;
+    bool _mapControllerToMouse;
+    bool _controllerMouseEnabledFlag;
+    float stickToMouseInputX;
+    float stickToMouseInputY;
+    float stickToWheelInputX;
+    float stickToWheelInputY;
+    float _stickToMouseExpo;
+    float _stickToMouseVelocity;
+    CADisplayLink *_displayLink;
+
+    float stickMaxOffset;
+    float _leftStickMinOffset;
+    float _rightStickMinOffset;
+
     OnScreenControls *_osc;
     VoidController *_oscController;
     NSMutableSet* _activeGCControllers;
     TemporarySettings* tempSettings;
-    
+    OSCProfilesManager* oscProfileMan;
+    OSCProfile* oscProfile;
+
 #define EMULATING_SELECT     0x1
 #define EMULATING_SPECIAL    0x2
     
@@ -65,6 +88,17 @@ static const double MOUSE_SPEED_DIVISOR = 1.25;
     int _gyroMode;
     CGFloat _gyroSensitivity;
     bool _captureMouse;
+    
+    bool _controllerGyroSwitchEnabled;
+    bool _gyroEnabledFlag;
+    int _controllerGyroSwitchToggle;
+    int _controllerGyroSwitchHold;
+    bool _reverseHoldButton;
+    bool _controllerGyroSwitchTogglePressed;
+    bool _controllerGyroSwitchHoldPressed;
+    ControllerGyroSwitchMode _gyroSwitchMode;
+
+    MotionHandler* motionHandler;
 }
 
 // UPDATE_BUTTON_FLAG(controller, flag, pressed)
@@ -225,30 +259,68 @@ static const double MOUSE_SPEED_DIVISOR = 1.25;
                             voidController.lastDeviceGyroSample = deviceGyroSample;
                             
                             // Convert rad/s to deg/s
-                            //NSLog(@"sending built-in gyro data, accelSample data 00: %f, playerIndex: %d",deviceGyroSample.x, voidController.playerIndex);
+                            
+                            UIInterfaceOrientation interfaceOrientation = UIInterfaceOrientationUnknown;
                             if (@available(iOS 13.0, *)) {
-                                if(UIApplication.sharedApplication.windows.firstObject.windowScene.interfaceOrientation == 4){//check for landscape left or landscape right
+                                interfaceOrientation = UIApplication.sharedApplication.windows.firstObject.windowScene.interfaceOrientation;
+                            } else {
+                                interfaceOrientation = UIApplication.sharedApplication.statusBarOrientation;
+                            }
+                            
+                            switch (interfaceOrientation) {
+                                case UIInterfaceOrientationLandscapeLeft:
                                     LiSendControllerMotionEvent((uint8_t)voidController.controllerNumber,
                                                                 LI_MOTION_TYPE_GYRO,
-                                                                deviceGyroSample.y * 57.2957795f * self->_gyroSensitivity,
-                                                                deviceGyroSample.z * 57.2957795f * self->_gyroSensitivity,
-                                                                deviceGyroSample.x * 57.2957795f * self->_gyroSensitivity);
-                                }
-                                else{
+                                                                self->_gyroEnabledFlag ? deviceGyroSample.y * 57.2957795f * self->_gyroSensitivity : 0,
+                                                                self->_gyroEnabledFlag ? deviceGyroSample.z * 57.2957795f * self->_gyroSensitivity : 0,
+                                                                self->_gyroEnabledFlag ? deviceGyroSample.x * 57.2957795f * self->_gyroSensitivity : 0);
+                                    break;
+                                case UIInterfaceOrientationLandscapeRight:
                                     LiSendControllerMotionEvent((uint8_t)voidController.controllerNumber,
                                                                 LI_MOTION_TYPE_GYRO,
-                                                                deviceGyroSample.y * -57.2957795f * self->_gyroSensitivity,
-                                                                deviceGyroSample.z * 57.2957795f * self->_gyroSensitivity,
-                                                                deviceGyroSample.x * -57.2957795f * self->_gyroSensitivity);
-                                }
+                                                                self->_gyroEnabledFlag ? deviceGyroSample.y * -57.2957795f * self->_gyroSensitivity : 0,
+                                                                self->_gyroEnabledFlag ? deviceGyroSample.z * 57.2957795f * self->_gyroSensitivity : 0,
+                                                                self->_gyroEnabledFlag ? deviceGyroSample.x * -57.2957795f * self->_gyroSensitivity : 0);
+                                    break;
+                                case UIInterfaceOrientationPortrait:
+                                    LiSendControllerMotionEvent((uint8_t)voidController.controllerNumber,
+                                                                LI_MOTION_TYPE_GYRO,
+                                                                self->_gyroEnabledFlag ? deviceGyroSample.x * 57.2957795f * self->_gyroSensitivity : 0,
+                                                                self->_gyroEnabledFlag ? deviceGyroSample.z * 57.2957795f * self->_gyroSensitivity : 0,
+                                                                self->_gyroEnabledFlag ? deviceGyroSample.y * -57.2957795f * self->_gyroSensitivity : 0);
+                                    break;
+                                case UIInterfaceOrientationPortraitUpsideDown:
+                                    LiSendControllerMotionEvent((uint8_t)voidController.controllerNumber,
+                                                                LI_MOTION_TYPE_GYRO,
+                                                                self->_gyroEnabledFlag ? deviceGyroSample.x * -57.2957795f * self->_gyroSensitivity : 0,
+                                                                self->_gyroEnabledFlag ? deviceGyroSample.z * 57.2957795f * self->_gyroSensitivity : 0,
+                                                                self->_gyroEnabledFlag ? deviceGyroSample.y * 57.2957795f * self->_gyroSensitivity : 0);
+                                    break;
+                                default:
+                                    LiSendControllerMotionEvent((uint8_t)voidController.controllerNumber,
+                                                                LI_MOTION_TYPE_GYRO,
+                                                                self->_gyroEnabledFlag ? deviceGyroSample.y * 57.2957795f * self->_gyroSensitivity : 0,
+                                                                self->_gyroEnabledFlag ? deviceGyroSample.z * 57.2957795f * self->_gyroSensitivity : 0,
+                                                                self->_gyroEnabledFlag ? deviceGyroSample.x * 57.2957795f * self->_gyroSensitivity : 0);
+                                    break;
+                            }
+                            
+                            /*
+                            if(UIApplication.sharedApplication.windows.firstObject.windowScene.interfaceOrientation == 4){//check for landscape left or landscape right
+                                LiSendControllerMotionEvent((uint8_t)voidController.controllerNumber,
+                                                            LI_MOTION_TYPE_GYRO,
+                                                            self->_gyroEnabledFlag ? deviceGyroSample.y * 57.2957795f * self->_gyroSensitivity : 0,
+                                                            self->_gyroEnabledFlag ? deviceGyroSample.z * 57.2957795f * self->_gyroSensitivity : 0,
+                                                            self->_gyroEnabledFlag ? deviceGyroSample.x * 57.2957795f * self->_gyroSensitivity : 0);
                             }
                             else{
                                 LiSendControllerMotionEvent((uint8_t)voidController.controllerNumber,
                                                             LI_MOTION_TYPE_GYRO,
-                                                            deviceGyroSample.y * 57.2957795f * self->_gyroSensitivity,
-                                                            deviceGyroSample.z * 57.2957795f * self->_gyroSensitivity,
-                                                            deviceGyroSample.x * 57.2957795f * self->_gyroSensitivity);
+                                                            self->_gyroEnabledFlag ? deviceGyroSample.y * -57.2957795f * self->_gyroSensitivity : 0,
+                                                            self->_gyroEnabledFlag ? deviceGyroSample.z * 57.2957795f * self->_gyroSensitivity : 0,
+                                                            self->_gyroEnabledFlag ? deviceGyroSample.x * -57.2957795f * self->_gyroSensitivity : 0);
                             }
+                            */
                         }];
                         break;
                 }
@@ -317,9 +389,9 @@ static const double MOUSE_SPEED_DIVISOR = 1.25;
                                         // NSLog(@"sending controller gyro data, gyroSample data 00: %f, playerIndex: %ld, obj: %@",gyroSample.x, (long)voidController.gamepad.playerIndex, voidController);
                                         LiSendControllerMotionEvent((uint8_t)voidController.controllerNumber,
                                                                     LI_MOTION_TYPE_GYRO,
-                                                                    gyroSample.x * 57.2957795f * self->_gyroSensitivity,
-                                                                    gyroSample.z * 57.2957795f * self->_gyroSensitivity,
-                                                                    gyroSample.y * -57.2957795f * self->_gyroSensitivity);
+                                                                    self->_gyroEnabledFlag ? gyroSample.x * 57.2957795f * self->_gyroSensitivity : 0,
+                                                                    self->_gyroEnabledFlag ? gyroSample.z * 57.2957795f * self->_gyroSensitivity : 0,
+                                                                    self->_gyroEnabledFlag ? gyroSample.y * -57.2957795f * self->_gyroSensitivity : 0);
                                     }];
                                     //  });
                                 });}
@@ -930,6 +1002,63 @@ static const double MOUSE_SPEED_DIVISOR = 1.25;
     }
 }
 
+double rc_expo(double x, double expo) {
+    if (x == 0.0) return 0.0;
+
+    double ax = fabs(x);
+    double y = pow(ax, expo);
+
+    return x > 0 ? y : -y;
+}
+
+- (void)sendStickToMouseMoveEventWithStickX:(float)stickX stickY:(float)stickY expo:(float)expo {
+    CGFloat mouseDeltaX = _stickToMouseVelocity*rc_expo(stickX, expo);
+    CGFloat mouseDeltaY = _stickToMouseVelocity*rc_expo(stickY, expo);
+    LiSendMouseMoveEvent(mouseDeltaX, -mouseDeltaY);
+}
+
+- (void)stopDisplayLink {
+    [_displayLink invalidate];
+    _displayLink = nil;
+}
+
+- (void)displayLinkCallBack {
+    if(!_controllerMouseEnabledFlag){
+        return;
+    }
+    NSTimeInterval delay = 0.5/_displayLink.preferredFramesPerSecond*NSEC_PER_SEC;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, delay), dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        [self sendStickToMouseMoveEventWithStickX:self->stickToMouseInputX stickY:self->stickToMouseInputY expo:self->_stickToMouseExpo];
+        LiSendHighResScrollEvent(15*self->stickToWheelInputY);
+        LiSendHighResHScrollEvent(15*self->stickToWheelInputX);
+    });
+}
+
+- (void)sendControllerMouseSwitchClick:(VoidController*) voidController{
+    [self setButtonFlag:voidController flags:self->_controllerMouseSwitch];
+    _mouseSwitchButtonBeingClicked = true;
+    [self updateFinished:voidController];
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.03*NSEC_PER_SEC), dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        [self clearButtonFlag:voidController flags:self->_controllerMouseSwitch];
+        self->_mouseSwitchButtonBeingClicked = false;
+        [self updateFinished:voidController];
+    });
+}
+
+- (bool)useMotionHandler{
+    return self->tempSettings.emulatedControllerType.intValue!=LI_CTYPE_PS
+           ||self->tempSettings.gyroMode.intValue==GyroModeOff;
+}
+
+- (void)switchGyroOnOffByControllerButton{
+    self->_gyroEnabledFlag = self->_gyroEnabledFlag && self->_controllerGyroSwitchEnabled;
+    if([self useMotionHandler]){
+        if(self->_gyroEnabledFlag) [self->motionHandler startGyroByControllerButton];
+        else [self->motionHandler stopGyroUpdateWithInterruptNoneGyroInput:false resetLeftStick:true];
+    }
+    else self->_gyroEnabledFlag = self->_gyroEnabledFlag || !self->_controllerGyroSwitchEnabled;
+}
+
 -(void) registerControllerCallbacks:(GCController*) controller
 {
     if (controller != NULL) {
@@ -974,12 +1103,190 @@ static const double MOUSE_SPEED_DIVISOR = 1.25;
                 }
             }
             
-            controller.extendedGamepad.valueChangedHandler = ^(GCExtendedGamepad *gamepad, GCControllerElement *element) {
+            if(self->_swapABXYButtons){
+                switch (self->_controllerMouseLeftButton) {
+                    case ControllerButtonA:
+                        self->_controllerMouseLeftButton = ControllerButtonB;
+                        break;
+                    case ControllerButtonB:
+                        self->_controllerMouseLeftButton = ControllerButtonA;
+                        break;
+                    case ControllerButtonX:
+                        self->_controllerMouseLeftButton = ControllerButtonY;
+                        break;
+                    case ControllerButtonY:
+                        self->_controllerMouseLeftButton = ControllerButtonX;
+                        break;
+                    default:
+                        break;
+                }
+                switch (self->_controllerMouseRightButton) {
+                    case ControllerButtonA:
+                        self->_controllerMouseRightButton = ControllerButtonB;
+                        break;
+                    case ControllerButtonB:
+                        self->_controllerMouseRightButton = ControllerButtonA;
+                        break;
+                    case ControllerButtonX:
+                        self->_controllerMouseRightButton = ControllerButtonY;
+                        break;
+                    case ControllerButtonY:
+                        self->_controllerMouseRightButton = ControllerButtonX;
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+                        
+            [ControllerUtil listenWithController:controller swapABXY:self->_swapABXYButtons handler:^(NSDictionary * buttonDict, GCExtendedGamepad * gamepad, GCControllerElement * element) {
                 VoidController* voidController = [self->_voidControllers objectForKey:[NSNumber numberWithInteger:gamepad.controller.playerIndex]];
                 short leftStickX, leftStickY;
                 short rightStickX, rightStickY;
                 unsigned char leftTrigger, rightTrigger;
                 
+                for(NSNumber* buttonFlagId in buttonDict){
+                    GCControllerButtonInput * button = (GCControllerButtonInput *)buttonDict[buttonFlagId];
+                    if(self->_mapControllerToMouse){
+                        if(button.pressed){
+                            if(buttonFlagId.intValue == self->_controllerMouseSwitch){
+                                self->_mouseSwitchButtonPressed = true;
+                                self->mouseSwitchDownTimestamp = CACurrentMediaTime();
+                            }
+                        }
+                        else{
+                            if(buttonFlagId.intValue == self->_controllerMouseSwitch && self->_mouseSwitchButtonPressed){
+                                if(CACurrentMediaTime()-self->mouseSwitchDownTimestamp>1){
+                                    self->_controllerMouseEnabledFlag = !self->_controllerMouseEnabledFlag;
+                                    [self updateLeftStick:voidController x:0 y:0];
+                                    [self updateRightStick:voidController x:0 y:0];
+                                }
+                                else [self sendControllerMouseSwitchClick:voidController];
+                                self->_mouseSwitchButtonPressed = false;
+                                self->mouseSwitchDownTimestamp = 0;
+                            }
+                        }
+                    }
+                    else self->_controllerMouseEnabledFlag = false;
+                    
+                    // controller switch buttons
+                    if(true){
+                        if(button.pressed){
+                            if (buttonFlagId.intValue == self->_controllerGyroSwitchToggle
+                                && !self->_controllerGyroSwitchTogglePressed) {
+                                self->_controllerGyroSwitchTogglePressed = true;
+                                
+                                self->_gyroEnabledFlag = !self->_gyroEnabledFlag;
+                                [self switchGyroOnOffByControllerButton];
+                            }
+                            if (buttonFlagId.intValue == self->_controllerGyroSwitchHold
+                                && !self->_controllerGyroSwitchHoldPressed) {
+                                self->_controllerGyroSwitchHoldPressed = true;
+                                
+                                self->_gyroEnabledFlag = !self->_reverseHoldButton;
+                                [self switchGyroOnOffByControllerButton];
+                            }
+                        }
+                        else{
+                            if (buttonFlagId.intValue == self->_controllerGyroSwitchToggle
+                                && self->_controllerGyroSwitchTogglePressed) {
+                                self->_controllerGyroSwitchTogglePressed = false;
+                            }
+                            if (buttonFlagId.intValue == self->_controllerGyroSwitchHold
+                                && self->_controllerGyroSwitchHoldPressed) {
+                                self->_controllerGyroSwitchHoldPressed = false;
+                                
+                                self->_gyroEnabledFlag = self->_reverseHoldButton;
+                                [self switchGyroOnOffByControllerButton];
+                            }
+                        }
+                    }
+                    
+                    if(self->_controllerMouseEnabledFlag){
+                        if(buttonFlagId.intValue == self->_controllerMouseLeftButton || buttonFlagId.intValue == self->_controllerMouseRightButton){
+                            if(buttonFlagId.intValue == self->_controllerMouseLeftButton) LiSendMouseButtonEvent(button.pressed ? BUTTON_ACTION_PRESS : BUTTON_ACTION_RELEASE, BUTTON_LEFT);
+                            if(buttonFlagId.intValue == self->_controllerMouseRightButton) LiSendMouseButtonEvent(button.pressed ? BUTTON_ACTION_PRESS : BUTTON_ACTION_RELEASE, BUTTON_RIGHT);
+                            UPDATE_BUTTON_FLAG(voidController, buttonFlagId.intValue, NO);
+                        }
+                        else if(buttonFlagId.intValue!=self->_controllerMouseSwitch || !self->_mapControllerToMouse) UPDATE_BUTTON_FLAG(voidController, buttonFlagId.intValue, button.pressed);
+                    }
+                    else if(buttonFlagId.intValue!=self->_controllerMouseSwitch || !self->_mapControllerToMouse) UPDATE_BUTTON_FLAG(voidController, buttonFlagId.intValue, button.pressed);
+                }
+                                
+                CGFloat leftStickXRaw = gamepad.leftThumbstick.xAxis.value * self->stickMaxOffset;
+                CGFloat leftStickYRaw = gamepad.leftThumbstick.yAxis.value * self->stickMaxOffset;
+                
+                CGFloat rightStickXRaw = gamepad.rightThumbstick.xAxis.value * self->stickMaxOffset;
+                CGFloat rightStickYRaw = gamepad.rightThumbstick.yAxis.value * self->stickMaxOffset;
+
+                
+                CGVector leftStickOffset = [ControllerUtil compensatedWithOffsetVector:CGVectorMake(leftStickXRaw, leftStickYRaw) minOffset:self->_leftStickMinOffset circulate:false];
+
+                CGVector rightStickOffset = [ControllerUtil compensatedWithOffsetVector:CGVectorMake(rightStickXRaw, rightStickYRaw) minOffset:self->_rightStickMinOffset circulate:false];
+                
+                leftStickX = self->_controllerMouseEnabledFlag ? 0 : leftStickOffset.dx;
+                leftStickY = self->_controllerMouseEnabledFlag ? 0 : leftStickOffset.dy;
+                
+                rightStickX = self->_controllerMouseEnabledFlag ? 0 : rightStickOffset.dx;
+                rightStickY = self->_controllerMouseEnabledFlag ? 0 : rightStickOffset.dy;
+                
+                if(self->_controllerMouseEnabledFlag){
+                    self->stickToMouseInputX = self->_controllerMouseStick == LeftStickToMouse ? gamepad.leftThumbstick.xAxis.value : gamepad.rightThumbstick.xAxis.value;
+                    self->stickToMouseInputY = self->_controllerMouseStick == LeftStickToMouse ? gamepad.leftThumbstick.yAxis.value : gamepad.rightThumbstick.yAxis.value;
+                    
+                    self->stickToWheelInputX = self->_controllerMouseStick == LeftStickToMouse ? gamepad.rightThumbstick.xAxis.value: gamepad.leftThumbstick.xAxis.value;
+                    self->stickToWheelInputY = self->_controllerMouseStick == LeftStickToMouse ? gamepad.rightThumbstick.yAxis.value: gamepad.leftThumbstick.yAxis.value;
+                }
+                else{
+                    self->stickToMouseInputX = 0;
+                    self->stickToMouseInputY = 0;
+                }
+                                
+                /*
+                if(self->oscProfile.mapGyroTo!=mapGyroToControllerStick
+                   ||!self->oscProfile.rollToLeftStick) [self updateLeftStick:voidController x:leftStickX y:leftStickY];
+                */
+                
+                if([self useMotionHandler]
+                   && self->oscProfile.mapGyroTo==mapGyroToControllerStick
+                   && self->oscProfile.yawPitchToRightStick
+                   && self->_gyroEnabledFlag
+                   ) [self->motionHandler mixPhysicalRightStickAndGyroInputWithX:rightStickX y:rightStickY];
+                else [self updateRightStick: voidController.playerIndex==0?self->_oscController:voidController x:rightStickX y:rightStickY];
+                
+                if([self useMotionHandler]
+                   && self->oscProfile.mapGyroTo==mapGyroToControllerStick
+                   && self->oscProfile.rollToLeftStick
+                   && self->_gyroEnabledFlag
+                   ) [self->motionHandler mixPhysicalLeftStickAndGyroInputWithX:leftStickX y:leftStickY];
+                else [self updateLeftStick: voidController.playerIndex==0?self->_oscController:voidController x:leftStickX y:leftStickY];
+                
+                leftTrigger = gamepad.leftTrigger.value * 0xFF;
+                rightTrigger = gamepad.rightTrigger.value * 0xFF;
+                [self updateTriggers:voidController left:leftTrigger right:rightTrigger];
+                
+                [self updateFinished:voidController];
+                
+                if (@available(iOS 14.0, *)) {
+                    if (gamepad.controller.physicalInputProfile.dpads[GCInputDualShockTouchpadOne]) {
+                        [self handleControllerTouchpad:voidController
+                                                 touch:gamepad.controller.physicalInputProfile.dpads[GCInputDualShockTouchpadOne]
+                                                 index:0];
+                    }
+                    if (gamepad.controller.physicalInputProfile.dpads[GCInputDualShockTouchpadTwo]) {
+                        [self handleControllerTouchpad:voidController
+                                                 touch:gamepad.controller.physicalInputProfile.dpads[GCInputDualShockTouchpadTwo]
+                                                 index:1];
+                    }
+                }
+            }];
+            
+            /*
+            controller.extendedGamepad.valueChangedHandler = ^(GCExtendedGamepad *gamepad, GCControllerElement *element) {
+                VoidController* voidController = [self->_voidControllers objectForKey:[NSNumber numberWithInteger:gamepad.controller.playerIndex]];
+                short leftStickX, leftStickY;
+                short rightStickX, rightStickY;
+                unsigned char leftTrigger, rightTrigger;
                 if (self->_swapABXYButtons) {
                     UPDATE_BUTTON_FLAG(voidController, B_FLAG, gamepad.buttonA.pressed);
                     UPDATE_BUTTON_FLAG(voidController, A_FLAG, gamepad.buttonB.pressed);
@@ -1062,12 +1369,15 @@ static const double MOUSE_SPEED_DIVISOR = 1.25;
                                                  index:1];
                     }
                 }
+                                
+                leftStickX = self->controllerToMouseStick != LeftStickToMouse ?  gamepad.leftThumbstick.xAxis.value * 0x7FFE : 0;
+                leftStickY = self->controllerToMouseStick != LeftStickToMouse ?  gamepad.leftThumbstick.yAxis.value * 0x7FFE : 0;;
                 
-                leftStickX = gamepad.leftThumbstick.xAxis.value * 0x7FFE;
-                leftStickY = gamepad.leftThumbstick.yAxis.value * 0x7FFE;
+                rightStickX = self->controllerToMouseStick != RightStickToMouse ?  gamepad.rightThumbstick.xAxis.value * 0x7FFE : 0;
+                rightStickY = self->controllerToMouseStick != RightStickToMouse ?  gamepad.rightThumbstick.yAxis.value * 0x7FFE : 0;
                 
-                rightStickX = gamepad.rightThumbstick.xAxis.value * 0x7FFE;
-                rightStickY = gamepad.rightThumbstick.yAxis.value * 0x7FFE;
+                self->stickToMouseInputX = self->controllerToMouseStick == LeftStickToMouse ? gamepad.leftThumbstick.xAxis.value : gamepad.rightThumbstick.xAxis.value;
+                self->stickToMouseInputY = self->controllerToMouseStick == LeftStickToMouse ? gamepad.leftThumbstick.yAxis.value : gamepad.rightThumbstick.yAxis.value;
                 
                 leftTrigger = gamepad.leftTrigger.value * 0xFF;
                 rightTrigger = gamepad.rightTrigger.value * 0xFF;
@@ -1077,6 +1387,7 @@ static const double MOUSE_SPEED_DIVISOR = 1.25;
                 [self updateTriggers:voidController left:leftTrigger right:rightTrigger];
                 [self updateFinished:voidController];
             };
+            */
         }
     } else {
         Log(LOG_W, @"Tried to register controller callbacks on NULL controller");
@@ -1411,11 +1722,54 @@ static const double MOUSE_SPEED_DIVISOR = 1.25;
 
     _oscController.playerIndex = 0;
 
+    oscProfile = [oscProfileMan getSelectedProfile];
     DataManager* dataMan = [[DataManager alloc] init];
     tempSettings = [dataMan getSettings];
 
     _oscEnabled = _oscEnabled || (OnScreenControlsLevel)[tempSettings.onscreenControls integerValue] != OnScreenControlsLevelOff || streamConfig.gyroMode != GyroModeOff;
     _gyroSensitivity = tempSettings.gyroSensitivity.floatValue;
+    
+    _mapControllerToMouse = tempSettings.mapControllerToMouse;
+    _controllerMouseSwitch = tempSettings.controllerMouseSwitch.intValue;
+    mouseSwitchDownTimestamp = 0;
+    _mouseSwitchButtonPressed = false;
+    _mouseSwitchButtonBeingClicked = false;
+    _controllerMouseStick = tempSettings.controllerMouseStick.intValue;
+    _controllerMouseLeftButton = tempSettings.controllerMouseLeftButton.intValue;
+    _controllerMouseRightButton = tempSettings.controllerMouseRightButton.intValue;
+    _stickToMouseExpo = tempSettings.controllerMouseExpo.floatValue;
+    _stickToMouseVelocity = tempSettings.controllerMousePointerVelocity.floatValue*60/tempSettings.framerate.intValue;
+    stickToMouseInputX = 0;
+    stickToMouseInputY = 0;
+    stickToWheelInputY = 0;
+    [self stopDisplayLink];
+    if(_mapControllerToMouse){
+        _displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(displayLinkCallBack)];
+        if (@available(iOS 15.0, tvOS 15.0, *)) {
+            [_displayLink setPreferredFrameRateRange:CAFrameRateRangeMake(tempSettings.framerate.intValue,tempSettings.framerate.intValue, tempSettings.framerate.intValue)];
+        }
+        else {
+            _displayLink.preferredFramesPerSecond = tempSettings.framerate.intValue;
+        }
+        [_displayLink addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSRunLoopCommonModes];
+    }
+    
+    _controllerGyroSwitchEnabled = oscProfile.controllerGyroSwitchMode != ControllerGyroSwitchDisabled;
+    _gyroSwitchMode = oscProfile.controllerGyroSwitchMode;
+    // _gyroSwitchMode = ControllerGyroSwitchHoldDownToActivate;
+    _controllerGyroSwitchToggle = oscProfile.controllerGyroSwitchToggle;
+    _controllerGyroSwitchHold = oscProfile.controllerGyroSwitchHold;
+    _reverseHoldButton = oscProfile.reverseGyroHoldButton;
+    _controllerGyroSwitchTogglePressed = false;
+    _controllerGyroSwitchHoldPressed = false;
+    
+    stickMaxOffset = 0x7FFE;
+    _leftStickMinOffset = oscProfile.physicalLeftStickMinOffset;
+    _rightStickMinOffset = oscProfile.physicalRightStickMinOffset;
+
+    if(oscProfile.controllerGyroSwitchMode == ControllerGyroSwitchDisabled && ![self useMotionHandler]) _gyroEnabledFlag = true;
+
+    if(![self useMotionHandler]) [self->motionHandler stopGyroUpdateWithInterruptNoneGyroInput:false resetLeftStick:true];
 }
 
 - (void)resetGyroInputForController:(VoidController* )voidController{
@@ -1608,6 +1962,12 @@ static const double MOUSE_SPEED_DIVISOR = 1.25;
     [self initializeControllerHaptics:_oscController];
     _gyroMode = AlwaysDevice;
 
+    _controllerMouseEnabledFlag = false;
+    
+    _gyroEnabledFlag = false;
+    motionHandler = [MotionHandler sharedInstance];
+    oscProfileMan = [OSCProfilesManager sharedManager:CGRectZero];
+
     [self updateCommonConfig:streamConfig];
     
     for(VoidController* voidController in _voidControllers.allValues){
@@ -1620,6 +1980,7 @@ static const double MOUSE_SPEED_DIVISOR = 1.25;
     
     _shallDisableGyroHotSwitch = streamConfig.gyroMode == GyroModeOff && _voidControllers.allValues.count == 0;
     NSLog(@"shallDisableGyroHotSwitch %d", _shallDisableGyroHotSwitch);
+    
     
     return self;
 }
@@ -1746,6 +2107,8 @@ static const double MOUSE_SPEED_DIVISOR = 1.25;
             [self unregisterMouseCallbacks:mouse];
         }
     }
+    
+    [self stopDisplayLink];
 }
 
 @end

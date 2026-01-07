@@ -21,6 +21,12 @@ typedef NS_ENUM(NSUInteger, UINavigationBarHeight) {
     UINavigationBarHeightIPhone = 44
 };
 
+typedef NS_ENUM(NSInteger, ControllerGyroSwitchMode) {
+    ControllerGyroSwitchDisabled,
+    ControllerGyroSwitchPressToToggle,
+    ControllerGyroSwitchHoldDown
+};
+
 typedef NS_ENUM(NSInteger, TouchMode) {
     RelativeTouch,
     NativeTouch,
@@ -48,6 +54,11 @@ typedef NS_ENUM(NSInteger, HapticEnginePreference) {
     RumbleDevice,
     LeftRightSwapped,
     RumbleOff
+};
+
+typedef NS_ENUM(NSInteger, ControllerMouseStick) {
+    LeftStickToMouse,
+    RightStickToMouse,
 };
 
 typedef NS_ENUM(NSInteger, FramePacingMode) {
@@ -100,6 +111,7 @@ typedef NS_ENUM(NSInteger, WidgetSizeTransition) {
                   preferredCodec:(uint32_t)preferredCodec
                     enableYUV444:(BOOL)enableYUV444
                        enablePIP:(BOOL)enablePIP
+                       fullColorRange:(BOOL)fullColorRange
                        enableHdr:(BOOL)enableHdr
                   btMouseSupport:(BOOL)btMouseSupport
                // absoluteTouchMode:(BOOL)absoluteTouchMode
@@ -120,6 +132,22 @@ typedef NS_ENUM(NSInteger, WidgetSizeTransition) {
               singleTapSensitivy:(CGFloat)singleTapSensitivy
                     hapticEngine:(NSInteger)hapticEngine
           edgeSlidingSensitivity:(CGFloat)edgeSlidingSensitivity
+                     audioEngine:(NSInteger)audioEngine
+                 delayLeftClick:(BOOL)delayLeftClick
+                   duckOtherApps:(BOOL)duckOtherApps
+                muteInBackground:(BOOL)muteInBackground
+     relativeTouchSlideThreshold:(CGFloat)relativeTouchSlideThreshold
+                     enablePinch:(BOOL)enablePinch
+               scrollSensitivity:(CGFloat)scrollSensitivity
+                pinchSensitivity:(CGFloat)pinchSensitivity
+                ctrlDownForPinch:(BOOL)ctrlDownForPinch
+                leftClickDelayMs:(CGFloat)leftClickDelayMs
+              settingsMenuOffset:(CGFloat)settingsMenuOffset
+             passthroughGestures:(BOOL)passthroughGestures
+            mapControllerToMouse:(BOOL)mapControllerToMouse
+  controllerMousePointerVelocity:(CGFloat)controllerMousePointerVelocity
+             controllerMouseExpo:(CGFloat)controllerMouseExpo
+        controllerGyroSwitchMode:(NSInteger)controllerGyroSwitchMode
           backgroundSessionTimer:(NSInteger)backgroundSessionTimer;
 
 - (NSArray*) getHosts;

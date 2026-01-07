@@ -32,13 +32,19 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, assign) uint8_t sizeReference;
 @property (nonatomic, assign) CGFloat widthFactor; // for OnScreenWidgetView
 @property (nonatomic, assign) CGFloat heightFactor; // for OnScreenWidgetView
+@property (nonatomic, assign) CGFloat componentSizeFactor; // for OnScreenWidgetView
 @property (nonatomic, assign) CGFloat borderWidth; // for OnScreenWidgetView
+@property (nonatomic, assign) CGFloat highlightSizeFactor; // for OnScreenWidgetView
 @property (nonatomic, assign) CGFloat sensitivityFactorX; // for OnScreenWidgetView
 @property (nonatomic, assign) CGFloat sensitivityFactorY; // for OnScreenWidgetView
+@property (nonatomic, assign) CGFloat slideThreshold; // for OnScreenWidgetView
 @property (nonatomic, assign) CGFloat yawFactor; // for OnScreenWidgetView
 @property (nonatomic, assign) CGFloat pitchFactor; // for OnScreenWidgetView
-@property (nonatomic, assign) CGFloat decelerationRate; // for OnScreenWidgetView
+@property (nonatomic, assign) CGFloat rollFactor; // for OnScreenWidgetView
+@property (nonatomic, assign) CGFloat decelerationRateX; // for OnScreenWidgetView
+@property (nonatomic, assign) CGFloat decelerationRateY; // for OnScreenWidgetView
 @property (nonatomic, assign) CGFloat stickIndicatorOffset; // for OnScreenWidgetView
+@property (nonatomic, assign) CGFloat walkModeThreshold; // for OnScreenWidgetView
 @property (nonatomic, assign) CGFloat minStickOffset; // for OnScreenWidgetView
 @property NSString* widgetShape; // for OnScreenWidgetView
 
@@ -46,6 +52,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, assign) CGFloat backgroundAlpha;
 @property (nonatomic, assign) CGFloat labelAlpha;
 @property (nonatomic, assign) CGFloat borderAlpha;
+@property (nonatomic, assign) CGFloat highlightAlpha;
 @property (nonatomic, assign) uint8_t vibrationStyle;
 @property (nonatomic, assign) uint8_t mouseButtonAction;
 @property (nonatomic, assign) uint16_t autoTapInterval;

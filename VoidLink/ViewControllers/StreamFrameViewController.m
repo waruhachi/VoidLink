@@ -19,7 +19,6 @@
 #import "DataManager.h"
 #import "PaddedLabel.h"
 #import "ImGuiRenderer.h"
-#import "RelativeTouchHandler.h"
 #import "MetalVideoRenderer.h"
 #import "CustomEdgeSlideGestureRecognizer.h"
 #import "CustomTapGestureRecognizer.h"
@@ -64,6 +63,7 @@
     BOOL _userIsInteracting;
     bool viewJustLoaded;
     bool viewIsBeingResized;
+    bool previousOnScreenWidgetEnabled;
     CGSize _keyboardSize;
     PlotMetrics _decodeMetrics;
     PlotMetrics _frameDropMetrics;
@@ -179,7 +179,7 @@
 
 
 - (bool)isOscLayoutToolEnabled{
-    return (_settings.touchMode.intValue == RelativeTouch || _settings.touchMode.intValue == NativeTouch || _settings.touchMode.intValue == NativeTouch || _settings.touchMode.intValue == TouchDisabled) && _settings.onscreenControls.intValue == OnScreenControlsLevelCustom;
+    return (_settings.touchMode.intValue == RelativeTouch || _settings.touchMode.intValue == NativeTouch || _settings.touchMode.intValue == AbsoluteTouch || _settings.touchMode.intValue == TouchDisabled) && _settings.onscreenControls.intValue == OnScreenControlsLevelCustom;
 }
 
 - (void)setupPiPControllerWithRenderer:(VideoDecoderRenderer *)videoRenderer {    // Ensure we have the renderer and its layer
@@ -305,13 +305,14 @@
         _oscLayoutTapRecoginizer.delaysTouchesBegan = NO;
         _oscLayoutTapRecoginizer.delaysTouchesEnded = NO;
         if(_settings.touchMode.intValue == AbsoluteTouch) _oscLayoutTapRecoginizer.immediateTriggering = true; // make immediate triggering on for absolute touch mode
-        [self.view addGestureRecognizer:_oscLayoutTapRecoginizer]; //
+        [self.view addGestureRecognizer:_oscLayoutTapRecoginizer];
+        _oscLayoutTapRecoginizer.touchCapturingView = _streamView;
     }
     
 }
 
 - (void)configZoomGestureAndAddStreamView{
-    if (_settings.touchMode.intValue == AbsoluteTouch) {
+    if (_settings.touchMode.intValue == AbsoluteTouch && !_settings.passthroughGestures) {
         if(!_scrollView) _scrollView = [[UIScrollView alloc] initWithFrame:self.view.frame];
 #if !TARGET_OS_TV
         [_scrollView.panGestureRecognizer setMinimumNumberOfTouches:2];
@@ -320,13 +321,14 @@
         [_scrollView setShowsHorizontalScrollIndicator:NO];
         [_scrollView setShowsVerticalScrollIndicator:NO];
         [_scrollView setDelegate:self];
-        [_scrollView setMaximumZoomScale:10.0f];
+        [_scrollView setMaximumZoomScale:_settings.passthroughGestures ? 1.0 : 10.0f];
         if(!_mainFrameViewcontroller.settingsExpandedInStreamView){
             // Add StreamView inside a UIScrollView for absolute mode
             [_scrollView addSubview:_streamView];
             // Insert at index 0 to ensure it doesn't cover OSC controls (CALayers)
             [self.view insertSubview:_scrollView atIndex:0];
         }
+        _scrollView.panGestureRecognizer.enabled = !_settings.passthroughGestures;
     }
     else{
         // Add streamView directly to self.view in other touch modes
@@ -341,11 +343,11 @@
 
 - (void)reConfigStreamViewRealtime {
     //if(!viewJustLoaded) [self handleViewResize];
-    [self reConfigStreamViewRealtimeAndReloadSettings:YES];
+    [self reConfigStreamViewRealtimeAndReloadSettings:YES reloadOnscreenWidgets:NO];
 }
 
 // key implementation of reconfiguring streamview after realtime setting menu is closed.
-- (void)reConfigStreamViewRealtimeAndReloadSettings:(BOOL)reloadSettings{
+- (void)reConfigStreamViewRealtimeAndReloadSettings:(BOOL)reloadSettings reloadOnscreenWidgets:(BOOL)reloadOnscreenWidgets{
     //[self.view removeGestureRecognizer:]
     //first, remove all gesture recognizers:
     for (UIGestureRecognizer *recognizer in _streamView.gestureRecognizers) {
@@ -374,13 +376,20 @@
     }
     else [micHandler stopTappingWithStopEngine:false];
     
+    Connection.muteInBackground = _settings.muteInBackground;
+    
     if(!viewJustLoaded) [_controllerSupport updateControllerSupport:self.streamConfig delegate:self];
     // reload controllerSupport obj, this is mandatory for OSC reload,especially when the stream view is launched without OSC
     [_streamView setupStreamView:_controllerSupport interactionDelegate:self config:self.streamConfig streamFrameTopLayerView:self.view]; //reinitiate setupStreamView process.
         // we got self.view passed to streamView class as the topLayerView, will be useful in many cases
     [self->_streamView reloadOnScreenControlsRealtimeWith:(ControllerSupport*)_controllerSupport
                                         andConfig:(StreamConfiguration*)_streamConfig]; //reload OSC here.
-    [self->_streamView reloadOnScreenWidgetViews]; //reload keyboard buttons here. the keyboard widget view will be added to the streamframe view instead streamview, the highest layer, which saves a lot of reengineering
+    
+    bool onScreenWidgetSwitched = previousOnScreenWidgetEnabled != [_streamView isOnScreenWidgetEnabled];
+    bool needReload = onScreenWidgetSwitched && !previousOnScreenWidgetEnabled;
+    if(viewJustLoaded||reloadOnscreenWidgets||needReload) [_streamView reloadOnScreenWidgetViews]; //reload keyboard buttons here. the keyboard widget view will be added to the streamframe view instead streamview, the highest layer, which saves a lot of reengineering
+    if(onScreenWidgetSwitched && previousOnScreenWidgetEnabled) [_streamView clearOnScreenWidgets];
+    previousOnScreenWidgetEnabled = [_streamView isOnScreenWidgetEnabled];
     
     [self reloadAirPlayConfig];
     [self mousePresenceChanged];
@@ -443,6 +452,12 @@
     _streamView.onScreenControls.instanceReceiverDelegate = _motionHandler;
     [_streamView.onScreenControls sendInstance];
     
+    TouchPadGestureHandler.enablePinch = _settings.enablePinch;
+    TouchPadGestureHandler.ctrlDownForPinch = _settings.ctrlDownForPinch;
+    TouchPadGestureHandler.scrollSensitivity = _settings.scrollSensitivity.floatValue;
+    TouchPadGestureHandler.pinchSensitivity = _settings.pinchSensitivity.floatValue;
+    TouchPadGestureHandler.displayLinkRate = _settings.framerate.intValue;
+
     NSLog(@"frameview gestures: %d", (uint32_t)[self.view.gestureRecognizers count]);
     NSLog(@"streamview gestures: %d", (uint32_t)[_streamView.gestureRecognizers count]);
 }
@@ -461,6 +476,7 @@
     [super viewDidAppear:animated];
     viewJustLoaded = false;
     _deviceWindow = self.view.window;
+    previousOnScreenWidgetEnabled = [_streamView isOnScreenWidgetEnabled];
     if (@available(iOS 13.0, *)) {
         UIScreen *currentScreen = self.view.window.windowScene.screen;
         if (UIScreen.screens.count > 1 && [self isAirPlayEnabled] && currentScreen == UIScreen.mainScreen) {
@@ -547,12 +563,13 @@
     // 创建弹窗
     NSString* tipText = [LocalizationHelper localizedStringForKey:@"firstLaunchTip", settingsEdgeSide, slideDist, cmdToolEdgeSide, slideDist];
     
-    [CountdownAlertController showAlertIn:self
+    [AlertControllerUtil showAlertIn:self
                                     title:[LocalizationHelper localizedStringForKey:@"First Launch Tips"]
                                   message:tipText
                                withCancel:NO
                               buttonTitle:[LocalizationHelper localizedStringForKey:@"Got it!"]
                                 countdown:16
+                                   action:^{}
                                completion:^{}];
     
     return;
@@ -772,6 +789,10 @@
     [self.pipController startPictureInPicture];
 }
 
+- (void)alterAbsTouchDragWithMouseButton:(int32_t)mouseButton{
+    [_streamView alterAbsTouchDragWith:mouseButton];
+}
+
 - (void)oscLayoutClosed{
     // Handle the callback
     _streamView.widgetToolOpened = false;
@@ -913,6 +934,9 @@
 }
 
 - (void) returnToMainFrame {
+    [_streamView clearOnScreenWidgets];
+    if(micHandler) [micHandler clean];
+    
     // Reset display mode back to default
     [self updatePreferredDisplayMode:NO];
     if (@available(iOS 13.0, *)) {
@@ -966,7 +990,7 @@
             if (_streamVideoRenderView && _streamView) {
                 [_streamView insertSubview:_streamVideoRenderView atIndex:0];
                 [self handleViewResize]; // Adjust frames as needed
-                [self reConfigStreamViewRealtimeAndReloadSettings:YES];
+                [self reConfigStreamViewRealtimeAndReloadSettings:YES reloadOnscreenWidgets:YES];
             }
         }
         NSNotificationCenter* nc = [NSNotificationCenter defaultCenter];
@@ -1031,6 +1055,8 @@
 - (void)applicationWillResignActive:(NSNotification *)notification {
     //[self.pipController startPictureInPicture];
     //sleep(1);
+    appDidEnterBackgroundWithoutPip = true;
+
     [_streamView saveRelocatedWidgetViews];
 
 #if !TARGET_OS_TV
@@ -1046,6 +1072,7 @@
 }
 
 - (void)applicationDidBecomeActive:(NSNotification *)notification {
+    appDidEnterBackgroundWithoutPip = false;
     // Stop the background timer, since we're foregrounded again
     if (_inactivityTimer != nil) {
         Log(LOG_I, @"Stopping inactivity timer after becoming active again");
@@ -1075,11 +1102,13 @@
 
 // This fires when the home button is pressed
 - (void)applicationDidEnterBackground:(UIApplication *)application {
-
     NSLog(@"did enter background, %d, %@, %d", _settings.enablePIP, self.pipController, self.pipController.isPictureInPictureActive);
     if (_settings.enablePIP && self.pipController && self.pipController.isPictureInPictureActive) {
         //Log(LOG_I, @"PIP is active, not terminating stream");
+        appDidEnterBackgroundWithoutPip = false;
     } else {
+        appDidEnterBackgroundWithoutPip = true;
+
         if ([_settings.renderingBackend intValue] == RENDER_METAL && self.metalViewController) {
             Log(LOG_I, @"Pausing Metal renderer on background");
             [self.metalViewController pauseRendering];
@@ -1495,7 +1524,7 @@
     // _settings.enableGraphs = _settings.statsOverlayEnabled;
     
     // Reconfigure the UI using the current in-memory settings, without reloading from disk
-    [self reConfigStreamViewRealtimeAndReloadSettings:NO];
+    [self reConfigStreamViewRealtimeAndReloadSettings:NO reloadOnscreenWidgets:NO];
 }
 
 - (void)toggleMouseCapture{
@@ -1563,8 +1592,8 @@
     [_motionHandler startAccelUpdate];
 }
 
-- (void)stopGyroUpdateWithInterruptTouchInput:(BOOL)interruption{
-    [_motionHandler stopGyroUpdateWithInterruptTouchInput:interruption];
+- (void)stopGyroUpdateWithInterruptNoneGyroInput:(BOOL)interruption{
+    [_motionHandler stopGyroUpdateWithInterruptNoneGyroInput:interruption resetLeftStick:false];
 }
 
 - (void)stopAccelUpdate{
@@ -1621,7 +1650,7 @@
     }
     dispatch_block_t block = dispatch_block_create(0, ^{
         [self handleViewResize];
-        [self reConfigStreamViewRealtimeAndReloadSettings:YES];
+        [self reConfigStreamViewRealtimeAndReloadSettings:YES reloadOnscreenWidgets:YES];
     });
     _delayedRemoveExtScreen = block;
     dispatch_time_t delayTime = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delayInSeconds * NSEC_PER_SEC));
@@ -1634,6 +1663,13 @@
 
 - (void)setupDisplayLink {
     if (_displayLink != nil) return;
+    TemporarySettings* tempSettings = [[[DataManager alloc] init] getSettings];  //StreamFrameViewController retrieve the settings here.
+    if (@available(iOS 15.0, tvOS 15.0, *)) {
+        [_displayLink setPreferredFrameRateRange:CAFrameRateRangeMake(tempSettings.framerate.intValue,tempSettings.framerate.intValue, tempSettings.framerate.intValue)];
+    }
+    else {
+        _displayLink.preferredFramesPerSecond = tempSettings.framerate.intValue;
+    }
     _displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(displayLinkTick:)];
     [_displayLink addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSRunLoopCommonModes];
 }

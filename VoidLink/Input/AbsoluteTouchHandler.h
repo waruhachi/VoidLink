@@ -11,8 +11,10 @@
 NS_ASSUME_NONNULL_BEGIN
 
 @interface AbsoluteTouchHandler : UIResponder
+@property (class, nonatomic, assign) int mouseButtonForCursorMove;
 
 - (id)initWithView:(StreamView*)view andSettings:(TemporarySettings*)settings;
+- (void)pauseLeftButtonDrag;
 
 @end
 

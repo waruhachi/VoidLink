@@ -84,6 +84,9 @@ NS_ASSUME_NONNULL_BEGIN
 @property (strong, nonatomic) IBOutlet UILabel *pitchFactorLabel;
 @property (strong, nonatomic) IBOutlet UISlider *pitchFactorSlider;
 @property (strong, nonatomic) IBOutlet UIStackView *pitchFactorStack;
+@property (strong, nonatomic) IBOutlet UILabel *rollFactorLabel;
+@property (strong, nonatomic) IBOutlet UISlider *rollFactorSlider;
+@property (strong, nonatomic) IBOutlet UIStackView *rollFactorStack;
 
 
 @property (strong, nonatomic) IBOutlet UIStackView *decelerationRateStack;
@@ -109,6 +112,22 @@ NS_ASSUME_NONNULL_BEGIN
 @property (strong, nonatomic) IBOutlet UILabel *autoTapLabel;
 // @property (strong, nonatomic) IBOutlet UISlider *autoTapSlider;
 @property (strong, nonatomic) IBOutlet UITextField *autoTapField;
+
+@property (strong, nonatomic) IBOutlet UIStackView *slideThresholdStack;
+@property (strong, nonatomic) IBOutlet UILabel *slideThresholdLabel;
+@property (strong, nonatomic) IBOutlet UISlider *slideThresholdSlider;
+
+@property (strong, nonatomic) IBOutlet UIStackView *minStickOffsetStack;
+@property (strong, nonatomic) IBOutlet UILabel *minStickOffsetLabel;
+@property (strong, nonatomic) IBOutlet UISlider *minStickOffsetSlider;
+
+@property (strong, nonatomic) IBOutlet UIStackView *componentSizeStack;
+@property (strong, nonatomic) IBOutlet UILabel *componentSizeLabel;
+@property (strong, nonatomic) IBOutlet UISlider *componentSizeSlider;
+
+@property (strong, nonatomic) IBOutlet UIStackView *walkModeThresholdStack;
+@property (strong, nonatomic) IBOutlet UILabel *walkModeThresholdLabel;
+@property (strong, nonatomic) IBOutlet UISlider *walkModeThresholdSlider;
 
 
 @property (weak, nonatomic) IBOutlet UIStackView *widgetPanelStack;

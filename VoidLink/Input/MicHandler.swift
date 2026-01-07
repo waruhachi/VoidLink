@@ -16,6 +16,7 @@ import Collections
 @objcMembers
 public class MicHandler: NSObject {
 
+    private var notificationTokens = [NSObjectProtocol]()
     private let engine = AVAudioEngine()
     private let playerNode = AVAudioPlayerNode()
     private var audioSink: Any?
@@ -48,6 +49,16 @@ public class MicHandler: NSObject {
 
     @objc public init(useBuiltinMic:Bool) {
         super.init()
+        
+        let token = NotificationCenter.default.addObserver(
+            forName: AVAudioSession.interruptionNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            self?.handleInterruption(notification)
+        }
+        notificationTokens.append(token)
+
         self.useBuiltinMic = useBuiltinMic
         do {
             try configureSession()
@@ -140,6 +151,29 @@ public class MicHandler: NSObject {
     
     /* ----------- Audio Session -------------*/
     
+    private func handleInterruption(_ notification: Notification) {
+        guard let info = notification.userInfo,
+              let typeValue = info[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: typeValue)
+        else { return }
+
+        switch type {
+        case .began:
+            self.stopTapping(stopEngine: true)
+        case .ended:
+            do {
+                try configureEngine()
+            } catch {
+                notify(error)
+            }
+            DispatchQueue.global().asyncAfter(deadline: .now() + 0.5) {
+                self.startTapping()
+            }
+        @unknown default:
+            break
+        }
+    }
+
     private func configureOpus(sampleRate: Int32, channels: Int) throws {
         var err: Int32 = 0
         guard let enc = opus_encoder_create(sampleRate, Int32(channels), OPUS_APPLICATION_VOIP, &err), err == OPUS_OK else {
@@ -162,7 +196,7 @@ public class MicHandler: NSObject {
     @objc public func startTapping() {
         // recordedBuffers.removeAll()
         isRecording = true
-        self.timer?.resume()
+        self.timer?.start()
         /*
         DispatchQueue.main.asyncAfter(deadline: .now() + seconds) { [weak self] in
             guard let self = self else { return }
@@ -175,7 +209,7 @@ public class MicHandler: NSObject {
 
     @objc public func stopTapping(stopEngine:Bool) {
         isRecording = false
-        self.timer?.suspend()
+        self.timer?.pause()
         // engine.inputNode.removeTap(onBus: 0)
         if(stopEngine){
             playerNode.stop()
@@ -185,11 +219,14 @@ public class MicHandler: NSObject {
 
     private func configureSession() throws {
         let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.playAndRecord, mode: .videoRecording, options: [.mixWithOthers, .defaultToSpeaker, .allowBluetooth])
+        /*
+        let bluetoothAudioOption = self.useBuiltinMic ? AVAudioSession.CategoryOptions.allowBluetoothA2DP : AVAudioSession.CategoryOptions.allowBluetooth
+        try session.setCategory(.playAndRecord, mode: .default, options: [.mixWithOthers, .defaultToSpeaker, bluetoothAudioOption])
+        
         if #available(iOS 13.0, *) {
             try session.setAllowHapticsAndSystemSoundsDuringRecording(true)
-        }
-        try session.setActive(true)
+        } */
+        // AVAudioSession Initiailized in Connection.m -> ArInit
         
         // 列出所有可用输入
         if self.useBuiltinMic, let inputs = session.availableInputs {
@@ -201,6 +238,7 @@ public class MicHandler: NSObject {
                 }
             }
         }
+        // try session.setActive(true)
     }
     
     private func sendOpusFrameFromDequeBuffer() {
@@ -329,6 +367,14 @@ public class MicHandler: NSObject {
         
         engine.prepare()
         try engine.start()
+    }
+    
+    @objc public func clean() {
+        for token in notificationTokens {
+            NotificationCenter.default.removeObserver(token)
+        }
+        notificationTokens.removeAll()
+        self.timer?.clean()
     }
     
     private func notify(_ error: Error) {

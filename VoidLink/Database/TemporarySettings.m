@@ -42,6 +42,7 @@
     self.preferredCodec = (typeof(self.preferredCodec))[[NSUserDefaults standardUserDefaults] integerForKey:@"preferredCodec"];
     self.enableYUV444 = [[NSUserDefaults standardUserDefaults] boolForKey:@"enableYUV444"];
     self.enablePIP = [[NSUserDefaults standardUserDefaults] boolForKey:@"enablePIP"];
+    self.fullRange = [[NSUserDefaults standardUserDefaults] boolForKey:@"fullRange"];
     self.frameQueueSize = [NSNumber numberWithInteger:[[NSUserDefaults standardUserDefaults] integerForKey:@"frameQueueSize"]];
     self.playAudioOnPC = [[NSUserDefaults standardUserDefaults] boolForKey:@"audioOnPC"];
     self.enableHdr = [[NSUserDefaults standardUserDefaults] boolForKey:@"enableHdr"];
@@ -88,6 +89,7 @@
     self.preferredCodec = settings.preferredCodec;
     self.enableYUV444 = settings.enableYUV444;
     self.enablePIP = settings.enablePIP;
+    self.fullColorRange = settings.fullColorRange;
     self.frameQueueSize = settings.frameQueueSize;
     self.playAudioOnPC = settings.playAudioOnPC;
     self.redirectMic = settings.redirectMic;
@@ -138,8 +140,28 @@
     self.edgeSlidingSensitivity = settings.edgeSlidingSensitivity;
     self.appTheme = settings.appTheme;
     self.hapticEngine = settings.hapticEngine;
-#endif
     self.uniqueId = settings.uniqueId;
+    self.audioEngine = settings.audioEngine;
+    self.delayLeftClick = settings.delayLeftClick;
+    self.duckOtherApps = settings.duckOtherApps;
+    self.muteInBackground = settings.muteInBackground;
+    self.relativeTouchSlideThreshold = settings.relativeTouchSlideThreshold;
+    self.enablePinch = settings.enablePinch;
+    self.scrollSensitivity = settings.scrollSensitivity;
+    self.pinchSensitivity = settings.pinchSensitivity;
+    self.leftClickDelayMs = settings.leftClickDelayMs;
+    self.ctrlDownForPinch = settings.ctrlDownForPinch;
+    self.settingsMenuOffset = settings.settingsMenuOffset;
+    self.passthroughGestures = settings.passthroughGestures;
+    self.mapControllerToMouse = settings.mapControllerToMouse;
+    self.controllerMouseLeftButton = settings.controllerMouseLeftButton;
+    self.controllerMouseRightButton = settings.controllerMouseRightButton;
+    self.controllerMouseSwitch = settings.controllerMouseSwitch;
+    self.controllerMouseStick = settings.controllerMouseStick;
+    self.controllerMousePointerVelocity = settings.controllerMousePointerVelocity;
+    self.controllerMouseExpo = settings.controllerMouseExpo;
+
+#endif
     
     return self;
 }

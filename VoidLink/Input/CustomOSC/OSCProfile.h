@@ -34,6 +34,7 @@ typedef NS_ENUM(NSInteger, MapGyroTo) {
 @property (nonatomic, assign) MapGyroTo mapGyroTo;
 @property (nonatomic, assign) bool yawPitchToRightStick;
 @property (nonatomic, assign) bool rollToLeftStick;
+@property (nonatomic, assign) bool synthesizePhysicalStick;
 @property (nonatomic, assign) CGFloat gyroSensitivityYaw;
 @property (nonatomic, assign) CGFloat gyroSensitivityPitch;
 @property (nonatomic, assign) CGFloat gyroSensitivityRoll;
@@ -41,6 +42,12 @@ typedef NS_ENUM(NSInteger, MapGyroTo) {
 @property (nonatomic, assign) CGFloat accelSensitivityY;
 @property (nonatomic, assign) CGFloat accelSensitivityZ;
 @property (nonatomic, assign) double gyroToStickMinOffset;
+@property (nonatomic, assign) double physicalLeftStickMinOffset;
+@property (nonatomic, assign) double physicalRightStickMinOffset;
+@property (nonatomic, assign) int controllerGyroSwitchMode;
+@property (nonatomic, assign) bool reverseGyroHoldButton;
+@property (nonatomic, assign) int controllerGyroSwitchHold;
+@property (nonatomic, assign) int controllerGyroSwitchToggle;
 
 
 - (id) initWithName:(NSString*)name buttonStates:(NSMutableArray*)buttonStates isSelected:(BOOL)isSelected;

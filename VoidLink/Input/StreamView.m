@@ -157,6 +157,7 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
     
     // we'll render on-screen controls on the toplayer too:
     _onScreenControls = [[OnScreenControls alloc] initWithView:self->streamFrameTopLayerView controllerSup:controllerSupport streamConfig:streamConfig];  // don't delete, this is mandatory
+    OnScreenControls.shared = _onScreenControls;
     /*
     // here we pass the tap recognizer to the onscreencontrols obj
     if (settings.touchMode.intValue == RelativeTouch){
@@ -170,7 +171,7 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
         [_onScreenControls setLevel:OnScreenControlsLevelOff];
         
         //pass touchesCaptureByOnScreenButtons Set to the native touchhandler, this NSSet is init witihin onscreencontrols class, don't do it again in native touch handler class
-        [OnScreenControls.touchAddrsCapturedByOnScreenControls removeAllObjects]; // reset the attribute to nil
+        [OnScreenControls.touchesCapturedByOnScreenControls removeAllObjects]; // reset the attribute to nil
         
         /*
         if(settings.touchMode.intValue == NativeTouch){
@@ -237,6 +238,7 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
     keyboardToggleRecognizer.delaysTouchesBegan = NO;
     keyboardToggleRecognizer.delaysTouchesEnded = NO;
     [self->_streamFrameTopLayerView addGestureRecognizer:keyboardToggleRecognizer];
+    keyboardToggleRecognizer.touchCapturingView = self;
 }
 
 - (void)keyboardWillShow:(NSNotification *)notification{
@@ -429,12 +431,12 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
 
 // we'll enable on screen buttons, and disable on screen controllers for absolute touch
 - (bool) isOscEnabled{
-    return (settings.touchMode.intValue == RelativeTouch || settings.touchMode.intValue == NativeTouch) && settings.onscreenControls.intValue != OnScreenControlsLevelOff;
+    return (settings.touchMode.intValue == RelativeTouch || settings.touchMode.intValue == NativeTouch || settings.touchMode.intValue == AbsoluteTouch || settings.touchMode.intValue == TouchDisabled) && settings.onscreenControls.intValue != OnScreenControlsLevelOff;
 }
 
 // we'll enable on screen buttons, and disable on screen controllers for absolute touch
 - (bool) isOnScreenWidgetEnabled{
-    return (settings.touchMode.intValue == RelativeTouch || settings.touchMode.intValue == NativeTouch || settings.touchMode.intValue == AbsoluteTouch || settings.touchMode.intValue == TouchDisabled) && settings.onscreenControls.intValue == OnScreenControlsLevelCustom;
+    return [self isOscEnabled] && settings.onscreenControls.intValue == OnScreenControlsLevelCustom;
 }
 
 - (void) reloadOnScreenControlsRealtimeWith:(ControllerSupport*)controllerSupport
@@ -462,6 +464,7 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
 
 
 - (void) clearOnScreenWidgets{
+    OnScreenWidgetView.isTweakingHighlight = false;
     for (UIView *subview in self->streamFrameTopLayerView.subviews) {
         // 检查子视图是否是特定类型的实例
         if ([subview isKindOfClass:[OnScreenWidgetView class]]) {
@@ -555,17 +558,23 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
                 widgetView.translatesAutoresizingMaskIntoConstraints = NO; // weird but this is mandatory, or you will find no key views added to the right place
                 widgetView.widthFactor = buttonState.widthFactor;
                 widgetView.heightFactor = buttonState.heightFactor;
+                widgetView.componentSizeFactor = buttonState.componentSizeFactor;
                 widgetView.borderWidth = buttonState.borderWidth;
+                widgetView.highlightSizeFactor = buttonState.highlightSizeFactor;
                 widgetView.autoTapInterval = buttonState.autoTapInterval;
                 [widgetView setVibrationWithStyle:buttonState.vibrationStyle];
                 widgetView.mouseButtonAction = buttonState.mouseButtonAction;
                 widgetView.sensitivityFactorX = buttonState.sensitivityFactorX;
                 widgetView.sensitivityFactorY = buttonState.sensitivityFactorY;
+                widgetView.slideThreshold = buttonState.slideThreshold;
                 widgetView.yawFactor = buttonState.yawFactor;
                 widgetView.pitchFactor = buttonState.pitchFactor;
-                widgetView.trackballDecelerationRate = buttonState.decelerationRate;
+                widgetView.rollFactor = buttonState.rollFactor;
+                widgetView.decelerationRateX = buttonState.decelerationRateX;
+                widgetView.decelerationRateY = buttonState.decelerationRateY;
                 widgetView.stickIndicatorOffset = buttonState.stickIndicatorOffset;
                 widgetView.minStickOffset = buttonState.minStickOffset;
+                widgetView.dWheelWalkModeThreshold = buttonState.walkModeThreshold;
                 widgetView.buttonMode = buttonState.buttonMode;
                 // Add the widgetView to the view controller's view
                 [self->streamFrameTopLayerView addSubview:widgetView]; // add keyboard button to the stream frame view. must add it to the target view before setting location.
@@ -579,7 +588,34 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
                 [widgetView adjustBorderWithWidth:buttonState.borderWidth];
                 [widgetView tweakLabelAlphaWithAlpha:buttonState.labelAlpha];
                 [widgetView tweakBorderAlphaWithAlpha:buttonState.borderAlpha];
+                [widgetView tweakHighlightAlphaWithAlpha:buttonState.highlightAlpha];
                 [widgetView setupAutoTapTimer];
+                [widgetView setupInertialScroller];
+            }
+        }
+        
+        uint64_t buttonIndex = 9999999;
+        UIView* deepestButton;
+        for (UIView *subview in self->streamFrameTopLayerView.subviews) {
+            if ([subview isKindOfClass:[OnScreenWidgetView class]]) {
+                OnScreenWidgetView* widget = (OnScreenWidgetView* ) subview;
+                if(widget.widgetType == WidgetTypeEnumButton){
+                    uint64_t index = [self->streamFrameTopLayerView.subviews indexOfObject:subview];
+                    if (index<buttonIndex){
+                        buttonIndex = index;
+                        deepestButton = subview;
+                    }
+                }
+            }
+        }
+        if(!deepestButton) return;
+        
+        for (UIView *subview in self->streamFrameTopLayerView.subviews) {
+            if ([subview isKindOfClass:[OnScreenWidgetView class]]) {
+                OnScreenWidgetView* widget = (OnScreenWidgetView* ) subview;
+                if(widget.widgetType == WidgetTypeEnumTouchPad){
+                    [self->streamFrameTopLayerView insertSubview:subview belowSubview:deepestButton];
+                }
             }
         }
     }
@@ -833,8 +869,6 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
 
 - (BOOL)handleMouseButtonEvent:(int)buttonAction forTouches:(NSSet *)touches withEvent:(UIEvent *)event {
     
-    
-    // NSLog(@"mouse click time: %f", CACurrentMediaTime()*1000);
 #if !TARGET_OS_TV
     if (@available(iOS 13.4, *)) {
         UITouch* touch = [touches anyObject];
@@ -954,6 +988,9 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
             break;
         case UIKeyboardHIDUsageKeyboardC:
             [interactionDelegate toggleMouseVisible];
+            break;
+        case UIKeyboardHIDUsageKeyboardD:
+            [interactionDelegate disconnectAndQuitApp];
             break;
         default:
             break;
@@ -1376,6 +1413,15 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
 
 - (void)wheelDidScrollWithIdentifier:(NSUUID * _Nonnull)identifier deltaZ:(int8_t)deltaZ {
     LiSendScrollEvent(deltaZ);
+}
+
+- (void)alterAbsTouchDragWith:(int32_t)mouseButton{
+    if([touchHandler isKindOfClass:[AbsoluteTouchHandler class]]){
+        AbsoluteTouchHandler* handler = (AbsoluteTouchHandler* )touchHandler;
+        AbsoluteTouchHandler.mouseButtonForCursorMove = mouseButton;
+        [handler pauseLeftButtonDrag];
+    }
+    else return;
 }
 
 

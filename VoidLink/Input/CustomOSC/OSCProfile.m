@@ -10,6 +10,7 @@
 //
 
 #import "OSCProfile.h"
+#import "VoidLink-Swift.h"
 
 @implementation OSCProfile
 
@@ -34,6 +35,7 @@
     [encoder encodeInt64:self.mapGyroTo forKey:@"mapGyroTo"];
     [encoder encodeBool:self.yawPitchToRightStick forKey:@"yawPitchToRightStick"];
     [encoder encodeBool:self.rollToLeftStick forKey:@"rollToLeftStick"];
+    [encoder encodeBool:self.synthesizePhysicalStick forKey:@"synthesizePhysicalStick"];
     [encoder encodeInt64:self.mapGyroTo forKey:@"mapGyroTo"];
     [encoder encodeFloat:self.gyroSensitivityYaw forKey:@"gyroSensitivityYaw"];
     [encoder encodeFloat:self.gyroSensitivityPitch forKey:@"gyroSensitivityPitch"];
@@ -42,6 +44,12 @@
     [encoder encodeFloat:self.accelSensitivityY forKey:@"accelSensitivityY"];
     [encoder encodeFloat:self.accelSensitivityZ forKey:@"accelSensitivityZ"];
     [encoder encodeDouble:self.gyroToStickMinOffset forKey:@"gyroToStickMinOffset"];
+    [encoder encodeDouble:self.physicalLeftStickMinOffset forKey:@"physicalLeftStickMinOffset"];
+    [encoder encodeDouble:self.physicalRightStickMinOffset forKey:@"physicalRightStickMinOffset"];
+    [encoder encodeInt:self.controllerGyroSwitchMode forKey:@"controllerGyroSwitchMode"];
+    [encoder encodeBool:self.reverseGyroHoldButton forKey:@"reverseGyroHoldButton"];
+    [encoder encodeInt:self.controllerGyroSwitchHold forKey:@"controllerGyroSwitchHold"];
+    [encoder encodeInt:self.controllerGyroSwitchToggle forKey:@"controllerGyroSwitchToggle"];
 }
 
 - (id) initWithCoder:(NSCoder*)decoder {
@@ -52,6 +60,7 @@
         self.mapGyroTo = [decoder containsValueForKey:@"mapGyroTo"] ? [decoder decodeInt64ForKey:@"mapGyroTo"] : mapGyroToMouse;
         self.yawPitchToRightStick = [decoder containsValueForKey:@"yawPitchToRightStick"] ? [decoder decodeBoolForKey:@"yawPitchToRightStick"] : true;
         self.rollToLeftStick = [decoder containsValueForKey:@"rollToLeftStick"] ? [decoder decodeBoolForKey:@"rollToLeftStick"] : false;
+        self.synthesizePhysicalStick = [decoder containsValueForKey:@"synthesizePhysicalStick"] ? [decoder decodeBoolForKey:@"synthesizePhysicalStick"] : true;
         self.gyroSensitivityYaw = [decoder containsValueForKey:@"gyroSensitivityYaw"] ? [decoder decodeFloatForKey:@"gyroSensitivityYaw"] : 1.0;
         self.gyroSensitivityPitch = [decoder containsValueForKey:@"gyroSensitivityPitch"] ? [decoder decodeFloatForKey:@"gyroSensitivityPitch"] : 1.0;
         self.gyroSensitivityRoll = [decoder containsValueForKey:@"gyroSensitivityRoll"] ? [decoder decodeFloatForKey:@"gyroSensitivityRoll"] : 1.0;
@@ -59,6 +68,12 @@
         self.accelSensitivityY = [decoder containsValueForKey:@"accelSensitivityY"] ? [decoder decodeFloatForKey:@"accelSensitivityY"] : 1.0;
         self.accelSensitivityZ = [decoder containsValueForKey:@"accelSensitivityZ"] ? [decoder decodeFloatForKey:@"accelSensitivityZ"] : 1.0;
         self.gyroToStickMinOffset = [decoder containsValueForKey:@"gyroToStickMinOffset"] ? [decoder decodeDoubleForKey:@"gyroToStickMinOffset"] : 0;
+        self.physicalLeftStickMinOffset = [decoder containsValueForKey:@"physicalLeftStickMinOffset"] ? [decoder decodeDoubleForKey:@"physicalLeftStickMinOffset"] : 0;
+        self.physicalRightStickMinOffset = [decoder containsValueForKey:@"physicalRightStickMinOffset"] ? [decoder decodeDoubleForKey:@"physicalRightStickMinOffset"] : 0;
+        self.controllerGyroSwitchMode = [decoder containsValueForKey:@"controllerGyroSwitchMode"] ? [decoder decodeIntForKey:@"controllerGyroSwitchMode"] : ControllerGyroSwitchDisabled;
+        self.reverseGyroHoldButton = [decoder containsValueForKey:@"reverseGyroHoldButton"] ? [decoder decodeBoolForKey:@"reverseGyroHoldButton"] : false;
+        self.controllerGyroSwitchHold = [decoder containsValueForKey:@"controllerGyroSwitchHold"] ? [decoder decodeIntForKey:@"controllerGyroSwitchHold"] : ControllerButtonNull;
+        self.controllerGyroSwitchToggle = [decoder containsValueForKey:@"controllerGyroSwitchToggle"] ? [decoder decodeIntForKey:@"controllerGyroSwitchToggle"] : ControllerButtonNull;
     }
     
     return self;
@@ -72,6 +87,7 @@
     copy.mapGyroTo = self.mapGyroTo;
     copy.yawPitchToRightStick = self.yawPitchToRightStick;
     copy.rollToLeftStick = self.rollToLeftStick;
+    copy.synthesizePhysicalStick = self.synthesizePhysicalStick;
     copy.gyroSensitivityYaw = self.gyroSensitivityYaw;
     copy.gyroSensitivityPitch = self.gyroSensitivityPitch;
     copy.gyroSensitivityRoll = self.gyroSensitivityRoll;
@@ -79,6 +95,12 @@
     copy.accelSensitivityY = self.accelSensitivityY;
     copy.accelSensitivityZ = self.accelSensitivityZ;
     copy.gyroToStickMinOffset = self.gyroToStickMinOffset;
+    copy.physicalLeftStickMinOffset = self.physicalLeftStickMinOffset;
+    copy.physicalRightStickMinOffset = self.physicalRightStickMinOffset;
+    copy.controllerGyroSwitchMode = self.controllerGyroSwitchMode;
+    copy.reverseGyroHoldButton = self.reverseGyroHoldButton;
+    copy.controllerGyroSwitchHold = self.controllerGyroSwitchHold;
+    copy.controllerGyroSwitchToggle = self.controllerGyroSwitchToggle;
     return copy;
 }
 
