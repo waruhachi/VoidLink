@@ -8,7 +8,7 @@
 
 #import "HostCardView.h"
 #import "LocalizationHelper.h"
-#import "ThemeManager.h"
+#import "VoidLink-Swift.h"
 #import "FixedTintImageView.h"
 
 
@@ -62,7 +62,7 @@ static const float REFRESH_CYCLE = 2.0f;
         computerIconMonitorCenterYOffset = [self isIPhone] ? -2.75*_sizeFactor : -3.2*_sizeFactor;
         iconAndButtonSpacing = 37*_sizeFactor;
         buttonHeight = 39*_sizeFactor;
-        defaultBlue = [ThemeManager appPrimaryColor];
+        defaultBlue = ThemeManager.appPrimaryColor;
         defaultGreen = [UIColor colorWithRed:52.0/255.0 green:199.0/255.0 blue:89.0/255.0 alpha:1.0];
         // self.userIterfaceStyle = UIUserInterfaceStyleLight
 
@@ -165,7 +165,7 @@ static const float REFRESH_CYCLE = 2.0f;
 
 - (void)setupUI {
     self.userInteractionEnabled = YES;
-    self.backgroundColor = [ThemeManager widgetBackgroundColor];  // theme
+    self.backgroundColor = ThemeManager.widgetBackgroundColor;  // theme
     self.cardContentpadding = 13 * _sizeFactor;
     self.clipsToBounds = YES;
     self.translatesAutoresizingMaskIntoConstraints = NO;
@@ -296,7 +296,7 @@ static const float REFRESH_CYCLE = 2.0f;
     self.appButton.translatesAutoresizingMaskIntoConstraints = NO;
     self.appButton.frame = CGRectMake(20, 200, 150, buttonHeight);
     [self.appButton setTitle:[LocalizationHelper localizedStringForKey:@"Applications"] forState:UIControlStateNormal];
-    [self.appButton setTitleColor:[ThemeManager textColorGray] forState:UIControlStateNormal]; //theme
+    [self.appButton setTitleColor:ThemeManager.textColorGray forState:UIControlStateNormal]; //theme
     self.appButton.titleLabel.font = [UIFont systemFontOfSize:buttonLabelFontSize];
     [self.appButton addTarget:self action:@selector(appButtonTapped) forControlEvents:UIControlEventPrimaryActionTriggered];
     [self addSubview:self.appButton];
@@ -325,7 +325,6 @@ static const float REFRESH_CYCLE = 2.0f;
     if (@available(iOS 13.0, *)) {
         UIImageSymbolConfiguration *config = [UIImageSymbolConfiguration configurationWithPointSize:buttonHeight*0.263];
         [self.launchButton setImage:[UIImage systemImageNamed:@"play.fill" withConfiguration:config] forState:UIControlStateNormal];
-        
     } else {
         // Fallback on earlier versions
     }
@@ -343,7 +342,7 @@ static const float REFRESH_CYCLE = 2.0f;
     self.pairButton = [UIButton buttonWithType:UIButtonTypeSystem];
     self.pairButton.translatesAutoresizingMaskIntoConstraints = NO;
     self.pairButton.frame = CGRectMake(0, 0, 150, 50);
-    self.pairButton.backgroundColor = [ThemeManager textTintColorWithAlpha];
+    self.pairButton.backgroundColor = ThemeManager.textTintColorWithAlpha;
     self.pairButton.layer.cornerRadius =  2*(uint16_t)(cardWidth*0.0377/2);
     [self.pairButton setTitle:[LocalizationHelper localizedStringForKey:@"  Pair with PIN"] forState:UIControlStateNormal];
     [self.pairButton setTitleColor:defaultBlue forState:UIControlStateNormal]; // theme
@@ -356,7 +355,7 @@ static const float REFRESH_CYCLE = 2.0f;
     } else {
         // Fallback on earlier versions
     }
-    self.pairButton.backgroundColor = [ThemeManager textTintColorWithAlpha];
+    self.pairButton.backgroundColor = ThemeManager.textTintColorWithAlpha;
     [self.pairButton setTitleColor:defaultBlue forState:UIControlStateNormal]; // theme
     
     [self.pairButton addTarget:self action:@selector(pairButtonTapped) forControlEvents:UIControlEventPrimaryActionTriggered];
@@ -377,7 +376,7 @@ static const float REFRESH_CYCLE = 2.0f;
     self.wakeupButton = [UIButton buttonWithType:UIButtonTypeSystem];
     self.wakeupButton.translatesAutoresizingMaskIntoConstraints = NO;
     self.wakeupButton.frame = CGRectMake(0, 0, 150, 50);
-    self.wakeupButton.backgroundColor = [ThemeManager textTintColorWithAlpha];
+    self.wakeupButton.backgroundColor = ThemeManager.textTintColorWithAlpha;
     self.wakeupButton.layer.cornerRadius = 2*(uint16_t)(cardWidth*0.0377/2);
     [self.wakeupButton setTitle:[LocalizationHelper localizedStringForKey:@"  Wake-on-LAN"] forState:UIControlStateNormal];
     [self.wakeupButton setTitleColor:defaultBlue forState:UIControlStateNormal]; // theme
@@ -472,10 +471,10 @@ static const float REFRESH_CYCLE = 2.0f;
 
 
 - (void)updateTheme {
-    self.backgroundColor = [ThemeManager widgetBackgroundColor];
-    _hostNameLabel.textColor = [ThemeManager textColor];
-    [_appButton setTitleColor:[ThemeManager appPrimaryColor] forState:UIControlStateNormal];
-    _separatorLine.backgroundColor = [ThemeManager separatorColor];
+    self.backgroundColor = ThemeManager.widgetBackgroundColor;
+    _hostNameLabel.textColor = ThemeManager.textColor;
+    [_appButton setTitleColor:ThemeManager.appPrimaryColor forState:UIControlStateNormal];
+    _separatorLine.backgroundColor = ThemeManager.hostCardSeparatorColor;
     
     backgroundLayer.hidden = NO;
     [self updateBackgroundLayerTheme];
@@ -514,7 +513,7 @@ static const float REFRESH_CYCLE = 2.0f;
         return;
     }
     
-    NSLog(@"hostCard update loop %f", CACurrentMediaTime());
+    // NSLog(@"hostCard update loop %f", CACurrentMediaTime());
     
     [self updateContentsForHost:_host];
     
@@ -560,7 +559,7 @@ static const float REFRESH_CYCLE = 2.0f;
                 [_launchButton setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal]; // theme
             }
             else {
-                _iconBackgroundView.backgroundColor = [ThemeManager appPrimaryColorWithAlpha];
+                _iconBackgroundView.backgroundColor = ThemeManager.appPrimaryColorWithAlpha;
                 UIColor* iconColor = [[UIColor whiteColor] colorWithAlphaComponent:[self isDarkTheme] ? 0.63 : 1];
                 _hostIconView.tintColor = iconColor;
                 lockIconView.tintColor = iconColor;
@@ -574,18 +573,18 @@ static const float REFRESH_CYCLE = 2.0f;
         case StateOffline:
             [_hostSpinner stopAnimating];
             // _iconBackgroundView.backgroundColor = _userIterfaceStyle == UIUserInterfaceStyleDark ? [UIColor appBackgroundColorDark] : [UIColor appBackgroundColorLight];
-            _iconBackgroundView.backgroundColor = [ThemeManager appBackgroundColor];
-            _statusLabel.textColor = [ThemeManager textColorGray];
+            _iconBackgroundView.backgroundColor = ThemeManager.offlineHostIconBackgroundColor;
+            _statusLabel.textColor = ThemeManager.textColorGray;
             _statusLabel.text = [LocalizationHelper localizedStringForKey: @"Offline"];
-            _statusIcon.tintColor = [ThemeManager textColorGray];
+            _statusIcon.tintColor = ThemeManager.textColorGray;
             if (@available(iOS 13.0, *)) {
                 _statusIcon.image = [UIImage systemImageNamed:@"exclamationmark.triangle.fill"];
             } else {
                 self.statusIcon.hidden = YES;
             }
             
-            _hostIconView.tintColor = [ThemeManager lowProfileGray];
-            lockIconView.tintColor = [ThemeManager lowProfileGray];
+            _hostIconView.tintColor = ThemeManager.lowProfileGray;
+            lockIconView.tintColor = ThemeManager.lowProfileGray;
             lockIconView.hidden = hostPaired;
             _appButton.hidden = YES;
             _launchButton.hidden = YES;
@@ -595,24 +594,24 @@ static const float REFRESH_CYCLE = 2.0f;
             if (@available(iOS 13.0, *)) {
                 UIImageSymbolConfiguration *config = [UIImageSymbolConfiguration configurationWithPointSize:buttonHeight/3.45 weight:UIImageSymbolWeightBold];
                 UIImage *templateImage = [UIImage systemImageNamed:@"power" withConfiguration:config];
-                UIImage *coloredImage = [templateImage imageWithTintColor:hasValidMac ? defaultBlue : [ThemeManager textColorGray] renderingMode:UIImageRenderingModeAlwaysOriginal];
+                UIImage *coloredImage = [templateImage imageWithTintColor:hasValidMac ? defaultBlue : ThemeManager.textColorGray renderingMode:UIImageRenderingModeAlwaysOriginal];
                 [self.wakeupButton setImage:coloredImage forState:UIControlStateNormal];
             } else {
                 // Fallback on earlier versions
             }
 
-            self.wakeupButton.backgroundColor = hasValidMac ? [ThemeManager textTintColorWithAlpha] : [[ThemeManager textColorGray] colorWithAlphaComponent:0.2];
-            [self.wakeupButton setTitleColor: hasValidMac ? defaultBlue : [ThemeManager textColorGray] forState:UIControlStateNormal];
+            self.wakeupButton.backgroundColor = hasValidMac ? ThemeManager.textTintColorWithAlpha : [ThemeManager.textColorGray colorWithAlphaComponent:0.2];
+            [self.wakeupButton setTitleColor: hasValidMac ? defaultBlue : ThemeManager.textColorGray forState:UIControlStateNormal];
             
             break;
         case StateUnknown:
             _hostSpinner.color = [UIColor whiteColor];
             [_hostSpinner startAnimating];
             // _iconBackgroundView.backgroundColor = _userIterfaceStyle == UIUserInterfaceStyleDark ? [UIColor appBackgroundColorDark] : [UIColor appBackgroundColorLight];
-            _iconBackgroundView.backgroundColor = [ThemeManager appPrimaryColorWithAlpha];
-            _statusLabel.textColor = [ThemeManager textColorGray];
+            _iconBackgroundView.backgroundColor = ThemeManager.appPrimaryColorWithAlpha;
+            _statusLabel.textColor = ThemeManager.textColorGray;
             _statusLabel.text = [LocalizationHelper localizedStringForKey: @"Detecting..."];
-            _statusIcon.tintColor = [ThemeManager textColorGray];
+            _statusIcon.tintColor = ThemeManager.textColorGray;
             if (@available(iOS 13.0, *)) {
                 _statusIcon.image = [UIImage systemImageNamed:@"antenna.radiowaves.left.and.right"];
             } else {
@@ -629,13 +628,13 @@ static const float REFRESH_CYCLE = 2.0f;
             if (@available(iOS 13.0, *)) {
                 UIImageSymbolConfiguration *config = [UIImageSymbolConfiguration configurationWithPointSize:buttonHeight/3.45 weight:UIImageSymbolWeightBold];
                 UIImage *templateImage = [UIImage systemImageNamed:@"power" withConfiguration:config];
-                UIImage *coloredImage = [templateImage imageWithTintColor:hasValidMac ? defaultBlue : [ThemeManager textColorGray] renderingMode:UIImageRenderingModeAlwaysOriginal];
+                UIImage *coloredImage = [templateImage imageWithTintColor:hasValidMac ? defaultBlue : ThemeManager.textColorGray renderingMode:UIImageRenderingModeAlwaysOriginal];
                 [self.wakeupButton setImage:coloredImage forState:UIControlStateNormal];
             } else {
                 // Fallback on earlier versions
             }
-            self.wakeupButton.backgroundColor = hasValidMac ? [ThemeManager textTintColorWithAlpha] : [[ThemeManager textColorGray] colorWithAlphaComponent:0.2];
-            [self.wakeupButton setTitleColor: hasValidMac ? defaultBlue : [ThemeManager textColorGray] forState:UIControlStateNormal];
+            self.wakeupButton.backgroundColor = hasValidMac ? ThemeManager.textTintColorWithAlpha : [ThemeManager.textColorGray colorWithAlphaComponent:0.2];
+            [self.wakeupButton setTitleColor: hasValidMac ? defaultBlue : ThemeManager.textColorGray forState:UIControlStateNormal];
             break;
         default:break;
     }

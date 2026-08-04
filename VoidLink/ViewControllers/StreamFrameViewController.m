@@ -24,12 +24,12 @@
 #import "CustomTapGestureRecognizer.h"
 #import "LocalizationHelper.h"
 #import "VoidLink-Swift.h"
-#import "OSCProfilesManager.h"
-#import "ThemeManager.h"
+#import "NativeTouchPointer.h"
 
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <errno.h>
 #include <Limelight.h>
 
 #if TARGET_OS_TV
@@ -44,10 +44,42 @@
 - (id)initWithRefreshRate:(float)arg1 videoDynamicRange:(int)arg2;
 @end
 
+static NSString* VLTerminationHintForErrorCode(int errorCode) {
+    switch (errorCode) {
+        case ML_ERROR_CONTROL_DISCONNECT_TIMEOUT:
+            return @"Timeout type: control disconnect timeout.\nThe control stream started disconnecting, but the final disconnect event never arrived before the timeout expired.";
+        case ML_ERROR_CONTROL_UNEXPECTED_DISCONNECT:
+            return @"Timeout type: enet peer timeout disconnect / unexpected control stream disconnect.\nThe established control stream was dropped by ENet or the host/network unexpectedly.";
+        case -1:
+            return @"Possible causes:\n- control disconnect timeout\n- enet peer timeout disconnect\n- unexpected control stream disconnect\n- video receive socket failure\n- audio receive socket failure\n- input send socket failure\n- control message send/ack failure\n- loss stats/control buffer malloc failure\n- video buffer malloc failure\n- audio packet malloc failure\n- unknown socket failure";
+        case ETIMEDOUT:
+            return @"Timeout type: socket or control channel timeout.";
+        case ECONNRESET:
+            return @"Possible cause: the host or network reset the connection.";
+        case EPIPE:
+            return @"Possible cause: write failed because the peer closed the connection.";
+        case ECONNABORTED:
+            return @"Possible cause: the local network stack aborted the connection.";
+        case ENETDOWN:
+            return @"Possible cause: the local network interface went down.";
+        case ENETUNREACH:
+            return @"Possible cause: the network became unreachable.";
+        case EHOSTUNREACH:
+            return @"Possible cause: the host became unreachable.";
+        case ENOBUFS:
+            return @"Possible cause: the network stack ran out of buffer space.";
+        case ENOMEM:
+            return @"Possible cause: memory allocation failed.";
+        default:
+            return nil;
+    }
+}
+
+
 @implementation StreamFrameViewController {
     ControllerSupport *_controllerSupport;
-    StreamManager *_streamMan;
     TemporarySettings *_settings;
+    OSCProfile* _oscProfile;
     NSTimer *_inactivityTimer;
     NSTimer *_statsUpdateTimer;
     PaddedLabel *_overlayView;
@@ -59,9 +91,8 @@
     UILabel *_tipLabel;
     UIActivityIndicatorView *_spinner;
     StreamView *_streamView;
-    UIScrollView *_scrollView;
+    BOOL _magnifierViewportInteractionActive;
     BOOL _userIsInteracting;
-    bool viewJustLoaded;
     bool viewIsBeingResized;
     bool previousOnScreenWidgetEnabled;
     CGSize _keyboardSize;
@@ -80,7 +111,7 @@
     dispatch_block_t _delayedRemoveExtScreen;
     VideoDecoderRenderer *_videoRenderer;
     BOOL _isRestoringFromPiP;
-    CADisplayLink *_displayLink;
+    SafeTimer* safeTimer;
 
 #if !TARGET_OS_TV
     CustomEdgeSlideGestureRecognizer *_slideToSettingsRecognizer;
@@ -178,8 +209,8 @@
 }
 
 
-- (bool)isOscLayoutToolEnabled{
-    return (_settings.touchMode.intValue == RelativeTouch || _settings.touchMode.intValue == NativeTouch || _settings.touchMode.intValue == AbsoluteTouch || _settings.touchMode.intValue == TouchDisabled) && _settings.onscreenControls.intValue == OnScreenControlsLevelCustom;
+- (bool)isOnScreenWidgetEnabled{
+    return _settings.onscreenControls.intValue == OnScreenControlsLevelCustom;
 }
 
 - (void)setupPiPControllerWithRenderer:(VideoDecoderRenderer *)videoRenderer {    // Ensure we have the renderer and its layer
@@ -229,13 +260,13 @@
 }
 
 - (void)updateToolboxSpecialEntries{
-    if([self isOscLayoutToolEnabled]){
+    if([self isOnScreenWidgetEnabled]){
         if(![toolBoxViewController.specialEntries containsObject:@"widgetLayoutTool"]) [toolBoxViewController.specialEntries insertObject:@"widgetLayoutTool" atIndex:0];
-        if(![toolBoxViewController.specialEntries containsObject:@"widgetSwitchTool"]) [toolBoxViewController.specialEntries insertObject:@"widgetSwitchTool" atIndex:1];
+        // if(![toolBoxViewController.specialEntries containsObject:@"widgetSwitchTool"]) [toolBoxViewController.specialEntries insertObject:@"widgetSwitchTool" atIndex:1];
     }
     else{
         [toolBoxViewController.specialEntries removeObject:@"widgetLayoutTool"];
-        [toolBoxViewController.specialEntries removeObject:@"widgetSwitchTool"];
+        // [toolBoxViewController.specialEntries removeObject:@"widgetSwitchTool"];
     }
     if(_settings.enablePIP){
         if(![toolBoxViewController.specialEntries containsObject:@"enterPip"]) [toolBoxViewController.specialEntries addObject:@"enterPip"];
@@ -245,9 +276,8 @@
     NSLog(@"toolBoxViewController.specialEntries %@", toolBoxViewController.specialEntries);
 }
 
-- (void)configOscLayoutTool{
-
-    if([self isOscLayoutToolEnabled]){
+- (void)prepareGameProfileSelector{
+    if(true){
         /* sets a reference to the correct 'LayoutOnScreenControlsViewController' depending on whether the user is on an iPhone or iPad */
         // _layoutOnScreenControlsVC = [[LayoutOnScreenControlsViewController alloc] init];
         BOOL isIPhone = ([UIDevice currentDevice].userInterfaceIdiom == UIUserInterfaceIdiomPhone);
@@ -268,7 +298,7 @@
 }
 
 - (void)bringUpToolboxMenu{
-    [self configOscLayoutTool];
+    [self prepareGameProfileSelector];
     ToolboxViewController* oldToolboxVC = toolBoxViewController;
     toolBoxViewController = [[ToolboxViewController alloc] init];
     toolBoxViewController.specialEntryDelegate = self;
@@ -281,6 +311,7 @@
 
 - (void)configGestures{
     _slideToSettingsRecognizer = [[CustomEdgeSlideGestureRecognizer alloc] initWithTarget:self action:@selector(edgeSwiped)];
+    _slideToSettingsRecognizer.excludePencilEvent = _oscProfile.disablePencilSlideGestures;
     _slideToSettingsRecognizer.edgeTolerance = _settings.edgeSlidingSensitivity.floatValue;
     _slideToSettingsRecognizer.edges = _settings.slideToSettingsScreenEdge.intValue;
     _slideToSettingsRecognizer.normalizedThresholdDistance = _settings.slideToSettingsDistance.floatValue;
@@ -290,6 +321,7 @@
     
     
     _slideToToolboxRecognizer = [[CustomEdgeSlideGestureRecognizer alloc] initWithTarget:self action:@selector(bringUpToolboxMenu)];
+    _slideToToolboxRecognizer.excludePencilEvent = _oscProfile.disablePencilSlideGestures;
     _slideToToolboxRecognizer.edgeTolerance = _settings.edgeSlidingSensitivity.floatValue;
     if(_settings.slideToSettingsScreenEdge.intValue == UIRectEdgeLeft) _slideToToolboxRecognizer.edges = UIRectEdgeRight;
     else _slideToToolboxRecognizer.edges = UIRectEdgeLeft;  // _commandManager triggered by sliding from another side.
@@ -298,7 +330,8 @@
     _slideToToolboxRecognizer.delaysTouchesEnded = NO;
     [self.view addGestureRecognizer:_slideToToolboxRecognizer];
     
-    if([self isOscLayoutToolEnabled]){
+    /*
+    if([self isOnScreenWidgetEnabled]){
         _oscLayoutTapRecoginizer = [[CustomTapGestureRecognizer alloc] initWithTarget:self action:@selector(handleWidgetLayoutGesture)];
         _oscLayoutTapRecoginizer.numberOfTouchesRequired = _settings.oscLayoutToolFingers.intValue; //tap a predefined number of fingers to open osc layout tool
         _oscLayoutTapRecoginizer.tapDownTimeThreshold = 0.2;
@@ -308,35 +341,197 @@
         [self.view addGestureRecognizer:_oscLayoutTapRecoginizer];
         _oscLayoutTapRecoginizer.touchCapturingView = _streamView;
     }
-    
+    */
+}
+
+- (BOOL)currentProfileContainsMagnifierWidget {
+    OSCProfilesManager *profileManager = [OSCProfilesManager sharedManager:CGRectZero];
+    for (NSData *buttonStateEncoded in _oscProfile.buttonStatesEncoded) {
+        OnScreenButtonState *buttonState = [profileManager unarchiveButtonStateEncoded:buttonStateEncoded];
+        if (buttonState.widgetType == CustomOnScreenWidget &&
+            [buttonState.name containsString:@"MAGNIFIER"]) {
+            return YES;
+        }
+    }
+    return NO;
+}
+
+- (BOOL)shouldWrapStreamViewInScrollView {
+    return YES;
+}
+
+- (UIView *)streamContentContainerView {
+    if (_scrollView && _streamView.superview == _scrollView && _scrollView.superview == self.view) {
+        return _scrollView;
+    }
+    return _streamView;
+}
+
+- (void)syncMagnifierStateFromScrollView {
+    if (!_scrollView) {
+        _streamViewMagnifierContentOffset = CGPointZero;
+        _streamViewMagnifierZoomScale = 1.0f;
+        return;
+    }
+
+    _streamViewMagnifierContentOffset = _scrollView.contentOffset;
+    _streamViewMagnifierZoomScale = _scrollView.zoomScale;
+}
+
+- (UIEdgeInsets)magnifierViewportInsets {
+    if (!_scrollView) {
+        return UIEdgeInsetsZero;
+    }
+
+    CGSize contentSize = _scrollView.contentSize;
+    CGSize boundsSize = _scrollView.bounds.size;
+    CGFloat insetX = MAX(boundsSize.width - contentSize.width * 0.1f, 0.0f);
+    CGFloat insetY = MAX(boundsSize.height - contentSize.height * 0.1f, 0.0f);
+    return UIEdgeInsetsMake(insetY, insetX, insetY, insetX);
+}
+
+- (CGPoint)clampedMagnifierContentOffset:(CGPoint)candidateOffset {
+    if (!_scrollView) {
+        return CGPointZero;
+    }
+
+    UIEdgeInsets insets = _scrollView.contentInset;
+    CGFloat minOffsetX = -insets.left;
+    CGFloat minOffsetY = -insets.top;
+    CGFloat maxOffsetX = MAX(_scrollView.contentSize.width - CGRectGetWidth(_scrollView.bounds) + insets.right, minOffsetX);
+    CGFloat maxOffsetY = MAX(_scrollView.contentSize.height - CGRectGetHeight(_scrollView.bounds) + insets.bottom, minOffsetY);
+
+    candidateOffset.x = MIN(MAX(candidateOffset.x, minOffsetX), maxOffsetX);
+    candidateOffset.y = MIN(MAX(candidateOffset.y, minOffsetY), maxOffsetY);
+    return candidateOffset;
+}
+
+- (void)updateMagnifierViewportMetrics {
+    if (!_scrollView) {
+        return;
+    }
+
+    _scrollView.contentInset = [self magnifierViewportInsets];
+    _scrollView.contentOffset = [self clampedMagnifierContentOffset:_scrollView.contentOffset];
+}
+
+- (void)updateScrollViewInteractionState {
+    if (!_scrollView) {
+        return;
+    }
+
+    BOOL interactionEnabled = _magnifierViewportInteractionActive;
+    if (@available(iOS 17.0, *)) {
+        _scrollView.allowsKeyboardScrolling = false;
+    }
+    _scrollView.scrollEnabled = interactionEnabled;
+    _scrollView.panGestureRecognizer.enabled = interactionEnabled;
+    _scrollView.pinchGestureRecognizer.enabled = interactionEnabled;
+}
+
+- (void)resetMagnifierTransformState {
+    if (_scrollView) {
+        [_scrollView setZoomScale:1.0f animated:NO];
+        _scrollView.contentOffset = CGPointZero;
+    }
+    _streamViewMagnifierContentOffset = CGPointZero;
+    _streamViewMagnifierZoomScale = 1.0f;
+    _magnifierViewportInteractionActive = NO;
+}
+
+- (void)applyMagnifierTranslation:(CGVector)translation pinchDelta:(CGFloat)pinchDelta {
+    if (![NSThread isMainThread]) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self applyMagnifierTranslation:translation pinchDelta:pinchDelta];
+        });
+        return;
+    }
+
+    if (!_scrollView || _streamView.superview != _scrollView) {
+        return;
+    }
+
+    CGFloat previousZoomScale = MAX(_scrollView.zoomScale, _scrollView.minimumZoomScale);
+    CGPoint visibleCenter = CGPointMake(_scrollView.contentOffset.x + CGRectGetWidth(_scrollView.bounds) * 0.5f,
+                                        _scrollView.contentOffset.y + CGRectGetHeight(_scrollView.bounds) * 0.5f);
+
+    CGFloat targetZoomScale = previousZoomScale;
+    if (fabs(pinchDelta) > 0.0001f) {
+        targetZoomScale += pinchDelta / 240.0f;
+        targetZoomScale = MIN(MAX(targetZoomScale, _scrollView.minimumZoomScale), _scrollView.maximumZoomScale);
+    }
+
+    if (fabs(targetZoomScale - previousZoomScale) > 0.0001f) {
+        CGFloat zoomRatio = targetZoomScale / previousZoomScale;
+        [_scrollView setZoomScale:targetZoomScale animated:NO];
+        visibleCenter = CGPointMake(visibleCenter.x * zoomRatio, visibleCenter.y * zoomRatio);
+    }
+
+    CGPoint targetOffset = CGPointMake(visibleCenter.x - CGRectGetWidth(_scrollView.bounds) * 0.5f - translation.dx,
+                                       visibleCenter.y - CGRectGetHeight(_scrollView.bounds) * 0.5f - translation.dy);
+    [self updateMagnifierViewportMetrics];
+    _scrollView.contentOffset = [self clampedMagnifierContentOffset:targetOffset];
+    [self syncMagnifierStateFromScrollView];
+}
+
+- (void)handleScrollPan:(UIPanGestureRecognizer *)gesture {
+    switch (gesture.state){
+        case UIGestureRecognizerStateEnded:
+            if(_oscProfile.touchMode == AbsoluteTouch && _scrollView.zoomScale < 1.0) [self resetMagnifierStreamViewWithAnimated:true];
+            break;
+        default:
+            break;
+    }
 }
 
 - (void)configZoomGestureAndAddStreamView{
-    if (_settings.touchMode.intValue == AbsoluteTouch && !_settings.passthroughGestures) {
+    BOOL shouldWrapInScrollView = [self shouldWrapStreamViewInScrollView];
+
+    if (shouldWrapInScrollView) {
         if(!_scrollView) _scrollView = [[UIScrollView alloc] initWithFrame:self.view.frame];
+        _scrollView.scrollsToTop = false;
+        _scrollView.frame = self.view.bounds;
+        _scrollView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
 #if !TARGET_OS_TV
         [_scrollView.panGestureRecognizer setMinimumNumberOfTouches:2];
         [_scrollView.panGestureRecognizer setMaximumNumberOfTouches:2]; // reduce competing with keyboardToggleRecognizer in StreamView.
+        [_scrollView.panGestureRecognizer addTarget:self
+                                             action:@selector(handleScrollPan:)];
 #endif
         [_scrollView setShowsHorizontalScrollIndicator:NO];
         [_scrollView setShowsVerticalScrollIndicator:NO];
         [_scrollView setDelegate:self];
-        [_scrollView setMaximumZoomScale:_settings.passthroughGestures ? 1.0 : 10.0f];
+        [_scrollView setBackgroundColor:UIColor.blackColor];
+        [_scrollView setClipsToBounds:YES];
+        [_scrollView setBouncesZoom:NO];
+        [_scrollView setMinimumZoomScale:0.1f];
+        [_scrollView setMaximumZoomScale:10.0f];
         if(!_mainFrameViewcontroller.settingsExpandedInStreamView){
-            // Add StreamView inside a UIScrollView for absolute mode
-            [_scrollView addSubview:_streamView];
-            // Insert at index 0 to ensure it doesn't cover OSC controls (CALayers)
-            [self.view insertSubview:_scrollView atIndex:0];
+            if (_streamView.superview != _scrollView) {
+                [_streamView removeFromSuperview];
+                _streamView.frame = _scrollView.bounds;
+                [_scrollView addSubview:_streamView];
+            }
+            if (_scrollView.superview != self.view) {
+                [self.view insertSubview:_scrollView atIndex:0];
+            } else {
+                [self.view sendSubviewToBack:_scrollView];
+            }
         }
-        _scrollView.panGestureRecognizer.enabled = !_settings.passthroughGestures;
+        if (_streamViewMagnifierZoomScale < _scrollView.minimumZoomScale) {
+            _streamViewMagnifierZoomScale = 1.0f;
+        }
+        [_scrollView setZoomScale:_streamViewMagnifierZoomScale animated:NO];
+        _scrollView.contentOffset = _streamViewMagnifierContentOffset;
+        [self updateMagnifierViewportMetrics];
+        [self syncMagnifierStateFromScrollView];
     }
     else{
-        // Add streamView directly to self.view in other touch modes
-        // Insert at index 0 to ensure it doesn't cover OSC controls (CALayers)
         if([_streamView.superview isKindOfClass:[UIScrollView class]]){
+            [self resetMagnifierTransformState];
             [_streamView removeFromSuperview];
         }
-        
+        [_scrollView removeFromSuperview];
         [self.view insertSubview:_streamView atIndex:0];
     }
 }
@@ -360,11 +555,13 @@
     if (reloadSettings) {
         _settings = [[[DataManager alloc] init] getSettings];  //StreamFrameViewController retrieve the settings here.
     }
+    _oscProfile = [[OSCProfilesManager sharedManager:CGRectZero] getSelectedProfile];
+    
     overlayLevel = _settings.statsOverlayLevel.intValue;
     [self setupOverlayView];
     
     if(viewIsBeingResized) viewIsBeingResized = false;
-    else [self configOscLayoutTool];
+    else [self prepareGameProfileSelector];
     [self updateToolboxSpecialEntries];
     [self configGestures];
     [self configZoomGestureAndAddStreamView];
@@ -378,16 +575,17 @@
     
     Connection.muteInBackground = _settings.muteInBackground;
     
-    if(!viewJustLoaded) [_controllerSupport updateControllerSupport:self.streamConfig delegate:self];
+    if(!_viewJustLoaded) [_controllerSupport updateControllerSupport:self.streamConfig delegate:self];
     // reload controllerSupport obj, this is mandatory for OSC reload,especially when the stream view is launched without OSC
-    [_streamView setupStreamView:_controllerSupport interactionDelegate:self config:self.streamConfig streamFrameTopLayerView:self.view]; //reinitiate setupStreamView process.
-        // we got self.view passed to streamView class as the topLayerView, will be useful in many cases
-    [self->_streamView reloadOnScreenControlsRealtimeWith:(ControllerSupport*)_controllerSupport
-                                        andConfig:(StreamConfiguration*)_streamConfig]; //reload OSC here.
+    [_streamView setupStreamViewWithControllerSupport:_controllerSupport interactionDelegate:self streamConfig:self.streamConfig gameProfile:_oscProfile streamFrameTopLayerView:self.view]; //reinitiate setupStreamView process.
+    [self->_streamView reloadOnScreenControlsRealtimeWithControllerSupport:(ControllerSupport*)_controllerSupport
+                                        streamConfig:(StreamConfiguration*)_streamConfig]; //reload OSC here.
     
     bool onScreenWidgetSwitched = previousOnScreenWidgetEnabled != [_streamView isOnScreenWidgetEnabled];
     bool needReload = onScreenWidgetSwitched && !previousOnScreenWidgetEnabled;
-    if(viewJustLoaded||reloadOnscreenWidgets||needReload) [_streamView reloadOnScreenWidgetViews]; //reload keyboard buttons here. the keyboard widget view will be added to the streamframe view instead streamview, the highest layer, which saves a lot of reengineering
+    OnScreenWidgetView.trackPointEnabled = _settings.touchPointTracking;
+    [_streamView reloadGameProfile:_oscProfile reloadWidgets:reloadOnscreenWidgets||needReload];
+    
     if(onScreenWidgetSwitched && previousOnScreenWidgetEnabled) [_streamView clearOnScreenWidgets];
     previousOnScreenWidgetEnabled = [_streamView isOnScreenWidgetEnabled];
     
@@ -431,50 +629,54 @@
     }
     // StreamView should also be at the back so OSC CALayers on self.view show
     if (self->_streamView && self->_streamView.superview) {
-        [self.view sendSubviewToBack:self->_streamView];
+        [self.view sendSubviewToBack:[self streamContentContainerView]];
     }
     // ImGui view should be on top for debug graphs
     if (self.imguiView && self.imguiView.mtkView.superview) {
         [self.view bringSubviewToFront:self.imguiView.mtkView];
     }
     
-    [self stopDisplayLink];
+    // [self pauseTimer];
     if(_settings.sendDummyEvent){
-        [self setupDisplayLink];
-        [self startDisplayLink];
+        if(!safeTimer) [self setupTimer];
+        if(!_viewJustLoaded) [safeTimer start];
     }
+    else [safeTimer pause];
     
-    _motionHandler = [MotionHandler sharedInstance];
+    _motionHandler = [MotionHandler sharedWithProfile: nil];
     _motionHandler.gyroBiasX = _settings.gyroBiasX.doubleValue;
     _motionHandler.gyroBiasY = _settings.gyroBiasY.doubleValue;
-    _motionHandler.gyroBiasZ = _settings.gyroBiasZ.doubleValue;    
+    _motionHandler.gyroBiasZ = _settings.gyroBiasZ.doubleValue;
+    _motionHandler.controllerGyroBiasX = _settings.controllerGyroBiasX.doubleValue;
+    _motionHandler.controllerGyroBiasY = _settings.controllerGyroBiasY.doubleValue;
+    _motionHandler.controllerGyroBiasZ = _settings.controllerGyroBiasZ.doubleValue;
 
-    _streamView.onScreenControls.instanceReceiverDelegate = _motionHandler;
-    [_streamView.onScreenControls sendInstance];
-    
     TouchPadGestureHandler.enablePinch = _settings.enablePinch;
     TouchPadGestureHandler.ctrlDownForPinch = _settings.ctrlDownForPinch;
     TouchPadGestureHandler.scrollSensitivity = _settings.scrollSensitivity.floatValue;
     TouchPadGestureHandler.pinchSensitivity = _settings.pinchSensitivity.floatValue;
     TouchPadGestureHandler.displayLinkRate = _settings.framerate.intValue;
+    
+    [self setMagnifierViewportInteractionEnabled:_oscProfile.touchMode == AbsoluteTouch && !_settings.passthroughGestures];
+    
+    GenericUtils.globeAsEscape = _settings.globeAsEscape;
 
     NSLog(@"frameview gestures: %d", (uint32_t)[self.view.gestureRecognizers count]);
     NSLog(@"streamview gestures: %d", (uint32_t)[_streamView.gestureRecognizers count]);
 }
 
 - (void)viewWillAppear:(BOOL)animated {
-    if(_settings.sendDummyEvent) [self startDisplayLink];
+    // if(_settings.sendDummyEvent) [self startTimer];
 }
 
 - (void)viewWillDisappear:(BOOL)animated {
     [super viewWillDisappear:animated];
-    [self stopDisplayLink];
 }
 
 - (void)viewDidAppear:(BOOL)animated
 {
     [super viewDidAppear:animated];
-    viewJustLoaded = false;
+    _viewJustLoaded = false;
     _deviceWindow = self.view.window;
     previousOnScreenWidgetEnabled = [_streamView isOnScreenWidgetEnabled];
     if (@available(iOS 13.0, *)) {
@@ -499,7 +701,12 @@
     }
 
     self->_streamView.originalFrame = self->_streamView.frame;
-
+    
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 5*NSEC_PER_SEC), dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        NSLog(@"pausing...");
+        nil;
+    });
+    
     // check to see if external screen is connected/disconnected
 
     [[NSNotificationCenter defaultCenter] addObserver: self
@@ -514,6 +721,16 @@
    
 #if !TARGET_OS_TV
     [[self revealViewController] setPrimaryViewController:self];
+    
+    [self restorePersistedStreamViewOffsetAndScaleWithProfile:_oscProfile];
+    
+    GenericUtils.pencilInStreaming = false;
+    
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(updateContentOffsetAndScale:)
+                                                 name:@"GameProfileSelectedNotification"
+                                               object:nil];
+    
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(reConfigStreamViewRealtime) // reconfig streamview when settings view is closed in stream view
                                                  name:@"SettingsViewClosedNotification"
@@ -533,12 +750,24 @@
                                              selector:@selector(keyboardWillShow:)
                                                  name:UIKeyboardWillShowNotification
                                                object:nil];
+    
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(handleNonStandardKeyboard:)
+                                                 name:UIKeyboardWillChangeFrameNotification
+                                               object:nil];
 
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(keyboardWillHide)
                                                  name:UIKeyboardWillHideNotification
                                                object:nil];
+    
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(keyboardDidHide)
+                                                 name:UIKeyboardDidHideNotification
+                                               object:nil];
 
+    [safeTimer start];
+    
     #endif
 }
 
@@ -554,6 +783,18 @@
 }
 #endif
 
+- (void)popKeyboardAndMouseStreamingTip {
+    [AlertControllerUtil showAlertIn:self
+                                    title:[LocalizationHelper localizedStringForKey:@"Keyboard/Mouse Connected"]
+                                  message:[LocalizationHelper localizedStringForKey:@"keyboard&MouseStreamingTip"]
+                               withCancel:NO
+                              buttonTitle:[LocalizationHelper localizedStringForKey:@"This tip won't be shown again"]
+                                countdown:5
+                                   action:^{}
+                               completion:^{
+                    }];
+}
+
 - (void)popFirstStreamingTip {
     // 初始化倒计时秒数
     
@@ -561,30 +802,36 @@
     NSString* cmdToolEdgeSide = _settings.slideToSettingsScreenEdge.intValue == UIRectEdgeLeft ? [LocalizationHelper localizedStringForKey:@"right"] : [LocalizationHelper localizedStringForKey:@"left"];
     uint8_t slideDist = (uint8_t)(_settings.slideToSettingsDistance.floatValue * 100);
     // 创建弹窗
-    NSString* tipText = [LocalizationHelper localizedStringForKey:@"firstLaunchTip", settingsEdgeSide, slideDist, cmdToolEdgeSide, slideDist];
+    NSString* tipText = (GenericUtils.isRunningOnMacAsiPadApp
+    ? [LocalizationHelper localizedStringForKey:@"keyboard&MouseStreamingTip"]
+    : [LocalizationHelper localizedStringForKey:@"firstLaunchTip", settingsEdgeSide, slideDist, cmdToolEdgeSide, slideDist]);
     
     [AlertControllerUtil showAlertIn:self
                                     title:[LocalizationHelper localizedStringForKey:@"First Launch Tips"]
                                   message:tipText
                                withCancel:NO
-                              buttonTitle:[LocalizationHelper localizedStringForKey:@"Got it!"]
+                              buttonTitle:[LocalizationHelper localizedStringForKey:@"This tip won't be shown again"]
                                 countdown:16
                                    action:^{}
-                               completion:^{}];
+                               completion:^{
+        if(!GenericUtils.isRunningOnMacAsiPadApp && GenericUtils.isHardwareKeyboardConnected) [self popKeyboardAndMouseStreamingTip];
+    }];
     
     return;
 }
 
 - (void)updateTheme {
-    self.view.backgroundColor = [ThemeManager appBackgroundColor];
-    _stageLabel.textColor = [[ThemeManager textColor] colorWithAlphaComponent:0.9];
-    _spinner.color = [ThemeManager textColor];
+    self.view.backgroundColor = UIColor.blackColor;
+    _stageLabel.textColor = [UIColor.whiteColor colorWithAlphaComponent:0.9];
+    _spinner.color = UIColor.whiteColor;
 }
 
 - (void)viewDidLoad
 {
-    viewJustLoaded = true;
+    _viewJustLoaded = true;
     viewIsBeingResized = false;
+    _magnifierViewportInteractionActive = false;
+    
     [super viewDidLoad];
 
     [self.navigationController setNavigationBarHidden:YES animated:YES];
@@ -603,6 +850,7 @@
     _stageLabel.center = CGPointMake(self.view.frame.size.width / 2, self.view.frame.size.height / 2);
     
     _spinner = [[UIActivityIndicatorView alloc] init];
+    _spinner.color = UIColor.whiteColor;
     [_spinner setUserInteractionEnabled:NO];
 #if TARGET_OS_TV
     [_spinner setActivityIndicatorViewStyle:UIActivityIndicatorViewStyleWhiteLarge];
@@ -613,10 +861,15 @@
     [_spinner startAnimating];
     _spinner.center = CGPointMake(self.view.frame.size.width / 2, self.view.frame.size.height / 2 - _stageLabel.frame.size.height - _spinner.frame.size.height);
     
+    _oscProfile = [[OSCProfilesManager sharedManager:CGRectZero] getSelectedProfile];
+    
     _controllerSupport = [[ControllerSupport alloc] initWithConfig:self.streamConfig delegate:self];
     _inactivityTimer = nil;
     
     _streamView = [[StreamView alloc] initWithFrame:self.view.frame];
+    _streamViewMagnifierContentOffset = CGPointZero;
+    _streamViewMagnifierZoomScale = 1.0f;
+    _magnifierViewportInteractionActive = NO;
     
     toolBoxViewController = [[ToolboxViewController alloc] init];
     toolBoxViewController.specialEntryDelegate = self;
@@ -636,7 +889,7 @@
     //[_streamView setupStreamView:_controllerSupport interactionDelegate:self config:self.streamConfig];
     [self reConfigStreamViewRealtime]; // call this method again to make sure all gestures are configured & added to the superview(self.view), including the gestures added from inside the streamview.
     
-    if([self isFirstStreaming]) [self popFirstStreamingTip];
+    if([self isFirstStreaming] || GenericUtils.isFirstStreamingOnMac) [self popFirstStreamingTip];
 
 #if TARGET_OS_TV
     if (!_menuTapGestureRecognizer || !_menuDoubleTapGestureRecognizer || !_playPauseTapGestureRecognizer) {
@@ -697,10 +950,14 @@
                                                object: nil];
     
     [[NSNotificationCenter defaultCenter] addObserver:self
-                                             selector:@selector(oscLayoutClosed)
-                                                 name:@"OscLayoutCloseNotification"
+                                             selector:@selector(gameProfileSelectorClosed)
+                                                 name:@"GameProfileSelectorCloseNotification"
                                                object:nil];
 
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(handleStreamAspectRatioChanged:)
+                                                 name:@"StreamAspectRatioChanged"
+                                               object:nil];
 #if 0
     // FIXME: This doesn't work reliably on iPad for some reason. Showing and hiding the keyboard
     // several times in a row will not correctly restore the state of the UIScrollView.
@@ -740,8 +997,14 @@
         [self.view insertSubview:self.metalViewController.view atIndex:0];
         [self.metalViewController didMoveToParentViewController:self];
     }
+        
+    OnScreenWidgetView.gamepadArrivalReported = false;
     
-    _mainFrameViewcontroller.sessionLaunchedWithAbsoluteTouch = _settings.touchMode.intValue == AbsoluteTouch;
+    OnScreenWidgetView.enableFolderAnimation = false;
+    dispatch_time_t delay = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2 * NSEC_PER_SEC));
+    dispatch_after(delay, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        OnScreenWidgetView.enableFolderAnimation = true;
+    });
 }
 
 - (void)keyboardWillShow:(NSNotification *)notification{
@@ -752,13 +1015,22 @@
     [_streamView keyboardWillHide];
 }
 
+- (void)keyboardDidHide{
+    _streamView.bounds = _deviceWindow.bounds;
+    _streamView.frame = _deviceWindow.frame;
+}
+
+- (void)handleNonStandardKeyboard:(NSNotification *)notification{
+    [_streamView handleNonStandardKeyboard:notification];
+}
+
 - (void)handleWidgetLayoutGesture{
-    [self configOscLayoutTool];
+    [self prepareGameProfileSelector];
     [self openWidgetLayoutTool];
 }
 
 - (void)openWidgetLayoutTool{
-    [_streamView saveRelocatedWidgetViews];
+    [_streamView saveStreamingGameProfileChanges];
     _streamView.widgetToolOpened = true;
     [self->_streamView disableOnScreenControls];
     [self->_streamView clearOnScreenWidgets]; // clear all onScreenKeyboardButtons before entering edit mode
@@ -768,16 +1040,17 @@
     [self presentViewController:_layoutOnScreenControlsVC animated:YES completion:nil];
 }
 
-- (void)switchWidgetProfile{
-    [_streamView saveRelocatedWidgetViews];
+- (void)openWidgetProfileTableWithPickProfile:(BOOL)pickProfile{
+    [_streamView saveStreamingGameProfileChanges];
     _streamView.widgetToolOpened = true;
     [self->_streamView disableOnScreenControls];
     [self->_streamView clearOnScreenWidgets]; // clear all onScreenKeyboardButtons before entering edit mode
     _layoutOnScreenControlsVC.quickSwitchEnabled = true;
     _layoutOnScreenControlsVC.toolbarStackView.hidden = true;
     _layoutOnScreenControlsVC.toolbarRootView.hidden = true;
+    OSCProfilesTableViewLoadingMode loadingMode = pickProfile ? OSCProfilesTableViewLoadingModePickProfile : OSCProfilesTableViewLoadingModeSelectProfileFromStreamView;
     [self presentViewController:_layoutOnScreenControlsVC animated:NO completion:^{
-        [self->_layoutOnScreenControlsVC presentProfilesTableView];
+        [self->_layoutOnScreenControlsVC presentProfilesTableViewWithLoadingMode:loadingMode];
     }];
 }
 
@@ -786,6 +1059,30 @@
 }
 
 - (void)enterPip{
+    if (@available(iOS 15.0, tvOS 15.0, *)) {
+        if(!_settings.enablePIP){
+            AlertControllerUtil.autoCompletion = true;
+            [AlertControllerUtil showAlertIn:self
+                                       title:@""
+                                     message:[LocalizationHelper localizedStringForKey:@"pipDisabled"]
+                                  withCancel:NO
+                                 buttonTitle:@""
+                                   countdown:1
+                                      action:^{}
+                                  completion:^{}];
+        }
+    }
+    else {
+        AlertControllerUtil.autoCompletion = true;
+        [AlertControllerUtil showAlertIn:self
+                                   title:@""
+                                 message:[LocalizationHelper localizedStringForKey:@"pipNotSupported"]
+                              withCancel:NO
+                             buttonTitle:@""
+                               countdown:1
+                                  action:^{}
+                              completion:^{}];
+    }
     [self.pipController startPictureInPicture];
 }
 
@@ -793,14 +1090,97 @@
     [_streamView alterAbsTouchDragWith:mouseButton];
 }
 
-- (void)oscLayoutClosed{
+- (void)magnifierMoveStreamViewWithTranslation:(CGVector)translation {
+    _magnifierViewportInteractionActive = YES;
+    [self updateScrollViewInteractionState];
+    [self applyMagnifierTranslation:translation pinchDelta:0.0f];
+}
+
+- (void)magnifierMoveStreamViewWithTranslation:(CGVector)translation pinchDelta:(CGFloat)pinchDelta {
+    _magnifierViewportInteractionActive = YES;
+    [self updateScrollViewInteractionState];
+    [self applyMagnifierTranslation:translation pinchDelta:pinchDelta];
+}
+
+- (void)setMagnifierViewportInteractionEnabled:(BOOL)enabled {
+    _magnifierViewportInteractionActive = enabled || (_oscProfile.touchMode == AbsoluteTouch && !_settings.passthroughGestures && !GenericUtils.pencilInStreaming);
+    [self updateScrollViewInteractionState];
+}
+
+- (void)updateContentOffsetAndScale:(NSNotification*)notification {
+    OSCProfile* profile = (OSCProfile* ) notification.object;
+    [self restorePersistedStreamViewOffsetAndScaleWithProfile:profile];
+}
+
+- (void)restorePersistedStreamViewOffsetAndScaleWithProfile:(OSCProfile* )profile {
+    if(!profile){
+        profile = [OSCProfilesManager sharedManager:CGRectZero].getSelectedProfile;
+    }
+    [self setMagnifierViewportInteractionEnabled:true];
+    CGPoint streamViewOffset = CGPointMake(profile.normalizedStreamViewOffset.x*self.view.bounds.size.width, profile.normalizedStreamViewOffset.y*self.view.bounds.size.height);
+    [self restoreMagnifierStreamViewWithOffset:streamViewOffset scale:profile.streamViewScale animated:YES];
+    [self setMagnifierViewportInteractionEnabled:profile.touchMode == AbsoluteTouch && !_settings.passthroughGestures];
+}
+
+- (void)restoreMagnifierStreamViewWithOffset:(CGPoint)offset scale:(CGFloat)scale {
+    [self restoreMagnifierStreamViewWithOffset:offset scale:scale animated:NO];
+}
+
+- (void)restoreMagnifierStreamViewWithOffset:(CGPoint)offset scale:(CGFloat)scale animated:(BOOL)animated {
+    if (![NSThread isMainThread]) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self restoreMagnifierStreamViewWithOffset:offset scale:scale animated:animated];
+        });
+        return;
+    }
+
+    if (!_scrollView || _streamView.superview != _scrollView) {
+        return;
+    }
+
+    CGFloat targetScale = MIN(MAX(scale, _scrollView.minimumZoomScale), _scrollView.maximumZoomScale);
+    [_scrollView setZoomScale:targetScale animated:animated];
+    [self updateMagnifierViewportMetrics];
+    CGPoint clampedOffset = [self clampedMagnifierContentOffset:offset];
+
+    if (animated) {
+        [UIView animateWithDuration:0.1
+                         animations:^{
+                             self->_scrollView.contentOffset = clampedOffset;
+                         }
+                         completion:^(__unused BOOL finished) {
+                             [self syncMagnifierStateFromScrollView];
+                         }];
+    }
+    else {
+        _scrollView.contentOffset = clampedOffset;
+        [self syncMagnifierStateFromScrollView];
+    }
+}
+
+- (void)resetMagnifierStreamViewWithAnimated:(BOOL)animated {
+    [self restoreMagnifierStreamViewWithOffset:CGPointZero scale:1.0f animated:animated];
+}
+
+- (void)gameProfileSelectorClosed{
     // Handle the callback
     _streamView.widgetToolOpened = false;
     [self->_streamView disableOnScreenControls]; // add this to get realtime back menu working.
     [self->_streamView reloadOnScreenControlsWith:(ControllerSupport*)_controllerSupport
                                         andConfig:(StreamConfiguration*)_streamConfig];
-    [self->_streamView showOnScreenControls];
-    [self->_streamView reloadOnScreenWidgetViews]; //update keyboard buttons here
+    // [self->_streamView reloadLegacyWidgets];
+    [self reConfigStreamViewRealtimeAndReloadSettings:NO reloadOnscreenWidgets:_settings.onscreenControls.intValue == OnScreenControlsLevelCustom];
+    // [self->_streamView reloadGameProfile:nil reloadWidgets:true]; //update keyboard buttons here
+}
+
+- (void)handleStreamAspectRatioChanged:(NSNotification *)notification {
+    NSNumber *aspectRatioNum = notification.userInfo[@"aspectRatio"];
+    if (aspectRatioNum && _streamView) {
+        CGFloat aspectRatio = [aspectRatioNum doubleValue];
+        Log(LOG_I, @"Updating StreamView aspect ratio to %.4f", aspectRatio);
+        _streamView.streamAspectRatio = aspectRatio;
+        _streamView.pencilHandler.streamAspectRatio = aspectRatio;
+    }
 }
 
 - (void)setUserInteractionEnabledForStreamView:(bool)enabled{
@@ -814,10 +1194,24 @@
     return _streamView;
 }
 
+- (void)scrollViewDidScroll:(UIScrollView *)scrollView {
+    if (scrollView == _scrollView) {
+        [self syncMagnifierStateFromScrollView];
+    }
+}
+
+- (void)scrollViewDidZoom:(UIScrollView *)scrollView {
+    if (scrollView == _scrollView) {
+        [self updateMagnifierViewportMetrics];
+        [self syncMagnifierStateFromScrollView];
+    }
+}
+
 - (void)willMoveToParentViewController:(UIViewController *)parent {
     // Only cleanup when we're being destroyed
     if (parent == nil) {
-        //NSLog(@"gyro cleanup, count: %ld", _controller.count);
+        _streamView = nil;
+        [_streamView cleanUp];
         [_controllerSupport cleanup];
 
         [UIApplication sharedApplication].idleTimerDisabled = NO;
@@ -832,7 +1226,14 @@
             self.metalViewController = nil;
             NSLog(@"Metal renderer stopped and cleaned up.");
         }
+        [NativeTouchPointer cleanUpContext];
         [[NSNotificationCenter defaultCenter] removeObserver:self];
+        for(UIView* view in self.view.subviews){
+            [view removeFromSuperview];
+        }
+        
+        [safeTimer pause];
+        [safeTimer clean];
     }
 }
 
@@ -934,8 +1335,10 @@
 }
 
 - (void) returnToMainFrame {
+    [_streamView saveStreamingGameProfileChanges];
     [_streamView clearOnScreenWidgets];
     if(micHandler) [micHandler clean];
+    PencilHandler.shared = nil;
     
     // Reset display mode back to default
     [self updatePreferredDisplayMode:NO];
@@ -1055,9 +1458,10 @@
 - (void)applicationWillResignActive:(NSNotification *)notification {
     //[self.pipController startPictureInPicture];
     //sleep(1);
-    appDidEnterBackgroundWithoutPip = true;
-
-    [_streamView saveRelocatedWidgetViews];
+    if(_settings.framePacingMode.intValue == FramePacingModeQueue) appDidEnterBackgroundWithoutPip = true;
+    
+    NSLog(@"applicationWillResignActive %f", CACurrentMediaTime());
+    [_streamView saveStreamingGameProfileChanges];
 
 #if !TARGET_OS_TV
 #endif
@@ -1072,7 +1476,30 @@
 }
 
 - (void)applicationDidBecomeActive:(NSNotification *)notification {
+    if(!GenericUtils.isIPhone){
+        for(OnScreenWidgetView* widget in OnScreenWidgetView.mapping.allValues){
+            if(widget.parentSequence != -1 && !widget.autoDockEnabled) continue;
+            if(widget.autoDockEnabled){
+                widget.autoDockIdleDuration = fmax(widget.autoDockIdleDuration, 3.0);
+                [widget autoDockStopCountdown];
+            }
+            dispatch_time_t delayTime = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC));
+            dispatch_after(delayTime, dispatch_get_main_queue(), ^{
+                if(widget.autoDockEnabled){
+                    OnScreenWidgetView.autoDockRestoreInitByViewResize = true;
+                    [widget restoreFromAutoDockWithAnimated:true];
+                }
+            });
+        }
+    }
+    
     appDidEnterBackgroundWithoutPip = false;
+    [_streamMan setNeedRequeuing:true];
+    // dispatch_time_t delay = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(15 * NSEC_PER_SEC));
+    // dispatch_after(delay, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        [Connection resetSysAudioPlayback];
+    // });
+    
     // Stop the background timer, since we're foregrounded again
     if (_inactivityTimer != nil) {
         Log(LOG_I, @"Stopping inactivity timer after becoming active again");
@@ -1141,7 +1568,7 @@
 
 - (void)expandSettingsView{
     self.mainFrameViewcontroller.settingsExpandedInStreamView = true; //notify mainFrameViewContorller that this is a setting expansion in stream view, some settings shall be disabled.
-    [_streamView saveRelocatedWidgetViews];
+    [_streamView saveStreamingGameProfileChanges];
     [self.mainFrameViewcontroller expandSettingsView];
 }
 
@@ -1183,11 +1610,12 @@
             [self.view sendSubviewToBack:self.metalViewController.view];
         }
         // For AVSB renderer, ensure streamView is at the back so OSC layers show
-        if (self->_streamView && self->_streamView.superview) {
-            [self.view sendSubviewToBack:self->_streamView];
+        UIView *streamContainerView = [self streamContentContainerView];
+        if (streamContainerView && streamContainerView.superview) {
+            [self.view sendSubviewToBack:streamContainerView];
         }
         
-        [self->_streamView showOnScreenControls];
+        // [self->_streamView showOnScreenControls];
         
         [self->_controllerSupport connectionEstablished];
         
@@ -1253,6 +1681,7 @@
                 default:
                 {
                     NSString* errorString;
+                    NSString* errorHint;
                     if (abs(errorCode) > 1000) {
                         // We'll assume large errors are hex values
                         errorString = [NSString stringWithFormat:@"%08X", (uint32_t)errorCode];
@@ -1261,9 +1690,13 @@
                         // Smaller values will just be printed as decimal (probably errno.h values)
                         errorString = [NSString stringWithFormat:@"%d", errorCode];
                     }
+                    errorHint = VLTerminationHintForErrorCode(errorCode);
                     
                     title = [LocalizationHelper localizedStringForKey: @"Connection Terminated"];
                     message = [LocalizationHelper localizedStringForKey: @"The connection was terminated, Error code: %@", errorString];
+                    if (errorHint != nil) {
+                        message = [message stringByAppendingFormat:@"\n\n%@", errorHint];
+                    }
                     break;
                 }
             }
@@ -1310,6 +1743,27 @@
     
     if(strcmp(stageName, "mic stream unsupported or unintialized")==0){
         _micStreamInitialized = false;
+    }
+    
+    // 8bit 444 degration workaround
+    if(strcmp(stageName, "video stream establishment")==0){
+        NSLog(@"sendAutoReleaseComboCommandWithCmdStrings %f", CACurrentMediaTime());
+        if(!_settings.enableHdr
+           && _settings.sdrPerformanceWorkaround
+           && [Utils hdrSupported]
+           ){
+            dispatch_time_t delay = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(4 * NSEC_PER_SEC));
+            dispatch_after(delay, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+                if(LiGetCurrentHostDisplayHdrMode()){
+                    NSArray* hdrCommand = [CommandManager.shared extractAutoReleaseButtonStringsFrom:@"WIN+ALT+B"];
+                    [CommandManager.shared sendAutoReleaseComboCommandWithCmdStrings:hdrCommand delay:0.15 index:0 pressOnly:false releaseOnly:false];
+                    dispatch_time_t delay = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1 * NSEC_PER_SEC));
+                    dispatch_after(delay, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+                        [self->_streamMan setNeedRequeuing:true];
+                    });
+                }
+            });
+        }
     }
 }
 
@@ -1481,6 +1935,14 @@
 #endif
 }
 
+- (void)keyboardConnected {
+    [GenericUtils handleKeyboardOrMouseConnectionTipIn:self];
+}
+
+- (void)mouseConnected {
+    [GenericUtils handleKeyboardOrMouseConnectionTipIn:self];
+}
+
 - (void)mousePresenceChanged {
 #if !TARGET_OS_TV
     if (@available(iOS 14.0, *)) {
@@ -1555,17 +2017,18 @@
     [self reConfigStreamViewRealtime];
 }
 
+/*
 - (NSMutableDictionary *)startGyroUpdate:(OnScreenWidgetView *)sender yawFactor:(CGFloat)yawFactor pitchFactor:(CGFloat)pitchFactor rollFactor:(CGFloat)rollFactor{
     NSMutableDictionary* gyroControlPreviousStatus = [NSMutableDictionary dictionary];
 
-    if(!_motionHandler.gyroControlStarted) [gyroControlPreviousStatus setObject:sender forKey:@"gyroControlStarter"];
+    if(!_motionHandler.motionControlStarted) [gyroControlPreviousStatus setObject:sender forKey:@"gyroControlStarter"];
     [gyroControlPreviousStatus setObject:@(_motionHandler.widgetYawFactor) forKey:@"previousYawFactor"];
     [gyroControlPreviousStatus setObject:@(_motionHandler.widgetPitchFactor) forKey:@"previousPitchFactor"];
     [gyroControlPreviousStatus setObject:@(_motionHandler.widgetRollFactor) forKey:@"previousRollFactor"];
     _motionHandler.widgetYawFactor = yawFactor;
     _motionHandler.widgetPitchFactor = pitchFactor;
     _motionHandler.widgetRollFactor = rollFactor;
-    [_motionHandler startGyroUpdate];
+    [_motionHandler startMotionUpdate];
 
     return gyroControlPreviousStatus;
 }
@@ -1573,8 +2036,8 @@
 
 - (NSMutableDictionary*)start:(CGFloat)yawFactor pitchFactor:(CGFloat)pitchFactor rollFactor:(CGFloat)rollFactor{
     NSMutableDictionary* gyroControlPreviousStatus = [NSMutableDictionary dictionary];
-    if(!_motionHandler.gyroControlStarted){
-        [gyroControlPreviousStatus setObject:@(_motionHandler.gyroControlStarted) forKey:@"gyroStarted"];
+    if(!_motionHandler.motionControlStarted){
+        [gyroControlPreviousStatus setObject:@(_motionHandler.motionControlStarted) forKey:@"gyroStarted"];
     }
     [gyroControlPreviousStatus setObject:@(_motionHandler.widgetYawFactor) forKey:@"previousYawFactor"];
     [gyroControlPreviousStatus setObject:@(_motionHandler.widgetPitchFactor) forKey:@"previousPitchFactor"];
@@ -1583,21 +2046,69 @@
     _motionHandler.widgetYawFactor = yawFactor;
     _motionHandler.widgetPitchFactor = pitchFactor;
     _motionHandler.widgetRollFactor = rollFactor;
-    [_motionHandler startGyroUpdate];
+    [_motionHandler startMotionUpdate];
     
     return gyroControlPreviousStatus;
 }
+*/
 
 - (void)startAccelUpdate{
     [_motionHandler startAccelUpdate];
 }
 
 - (void)stopGyroUpdateWithInterruptNoneGyroInput:(BOOL)interruption{
-    [_motionHandler stopGyroUpdateWithInterruptNoneGyroInput:interruption resetLeftStick:false];
+    [_motionHandler stopMotionUpdateWithInterruptNoneGyroInput:interruption];
 }
 
 - (void)stopAccelUpdate{
     [_motionHandler stopAccelUpdate];
+}
+
+- (void)enablePencilHover{
+    [_streamView enablePencilHover];
+}
+
+- (void)disablePencilHover{
+    [_streamView disablePencilHover];
+}
+
+- (void)setAllowSingleTouchEnabled:(BOOL)enabled{
+    [_streamView setAllowSingleTouchEnabled:enabled];
+}
+
+- (void)replaceBrushWithShortcut:(NSString *)shortcut{
+    if(PencilHandler.shared){
+        [PencilHandler.shared replaceBrushWith:shortcut];
+    }
+}
+
+- (void)replaceEraserWithShortcut:(NSString *)shortcut{
+    if(PencilHandler.shared){
+        [PencilHandler.shared replaceEraserWith:shortcut];
+    }
+}
+
+- (void)toggleTouchWithDisabled:(BOOL)disabled{
+    [_streamView toggleTouchDisabled:disabled];
+}
+
+- (void)presentPressureCurveVC{
+    if(_oscProfile.pressureCurveEnabled){
+        PressureCurveViewController* pressureCurveVC = [[PressureCurveViewController alloc] init];
+        pressureCurveVC.modalPresentationStyle = UIModalPresentationOverFullScreen;
+        [self presentViewController:pressureCurveVC animated:YES completion:nil];
+    }
+    else{
+        AlertControllerUtil.autoCompletion = true;
+        [AlertControllerUtil showAlertIn:self
+                                        title:@""
+                                      message:[LocalizationHelper localizedStringForKey:@"Please enable pressure curve in settings menu"]
+                                   withCancel:NO
+                                  buttonTitle:@""
+                                    countdown:2
+                                       action:^{}
+                                   completion:^{}];
+    }
 }
 
 #if !TARGET_OS_TV
@@ -1607,7 +2118,8 @@
 }
 
 - (BOOL)prefersHomeIndicatorAutoHidden {
-    if ( [_controllerSupport getConnectedGamepadCount] > 0 && [_streamView getCurrentOscState] == OnScreenControlsLevelOff &&
+    if(OnScreenWidgetView.deferScreenEdgeSysGesturesDueToOnScreenWidgets) return NO;
+    if ( [_controllerSupport getConnectedGamepadCount] > 0 &&
         _userIsInteracting == NO) {
         // Autohide the home bar when a gamepad is connected
         // and the on-screen controls are disabled. We can't
@@ -1637,57 +2149,124 @@
 - (void)viewWillTransitionToSize:(CGSize)size withTransitionCoordinator:(id<UIViewControllerTransitionCoordinator>)coordinator {
     [super viewWillTransitionToSize:size withTransitionCoordinator:coordinator];
     
+    [self resetMagnifierStreamViewWithAnimated:false];
+    
+    // handle view size change for on-screen widgets
+    CGSize oldSize = self.view.bounds.size;
+    CGFloat scaleX = size.width  / oldSize.width;
+    CGFloat scaleY = size.height / oldSize.height;
+    for(OnScreenWidgetView* widget in OnScreenWidgetView.mapping.allValues){
+        CGPoint oldCenter = widget.center;
+        CGPoint oldStoredCenter = widget.storedCenter;
+        
+        if(widget.autoDockEnabled){
+            widget.autoDockIdleDuration = fmax(widget.autoDockIdleDuration, 2.0);
+            [widget autoDockStopCountdown];
+        }
+        dispatch_time_t delayTime = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC));
+        dispatch_after(delayTime, dispatch_get_main_queue(), ^{
+            if(widget.autoDockEnabled){
+                OnScreenWidgetView.autoDockRestoreInitByViewResize = true;
+                [widget restoreFromAutoDockWithAnimated:true];
+            }
+        });
+        
+        [coordinator animateAlongsideTransition:^(id<UIViewControllerTransitionCoordinatorContext>  _Nonnull context) {
+            widget.center = CGPointMake(oldCenter.x * scaleX,oldCenter.y * scaleY);
+            widget.storedCenter = CGPointMake(oldStoredCenter.x * scaleX,oldStoredCenter.y * scaleY);
+        } completion:nil];
+    }
+
+    
+    dispatch_time_t delay = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1 * NSEC_PER_SEC));
+    dispatch_after(delay, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        [self->_streamMan setNeedRequeuing:true];
+    });
+
+    /*
     if (_isRestoringFromPiP) {
         Log(LOG_I, @"View size changed during PiP restore, skipping redundant reconfiguration.");
         return;
-    }
+    } */
 
-    Log(LOG_I, @"View size changed, terminating stream");
-    
+    // Log(LOG_I, @"View size changed, terminating stream");
+
     double delayInSeconds = 0.2;
     if (_delayedRemoveExtScreen) {
         dispatch_block_cancel(_delayedRemoveExtScreen);
     }
+        
     dispatch_block_t block = dispatch_block_create(0, ^{
         [self handleViewResize];
-        [self reConfigStreamViewRealtimeAndReloadSettings:YES reloadOnscreenWidgets:YES];
+        [self reConfigStreamViewRealtimeAndReloadSettings:YES reloadOnscreenWidgets:NO];
     });
     _delayedRemoveExtScreen = block;
     dispatch_time_t delayTime = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delayInSeconds * NSEC_PER_SEC));
     dispatch_after(delayTime, dispatch_get_main_queue(), block);
 }
 
-- (void)dealloc {
-    [self stopDisplayLink];
+- (void)controllerArrivalWithPlayerIndex:(int8_t)index{
+    if(index == 0 && _oscProfile.gamepadOverlayEnabled){
+        if (@available(iOS 13.0, *)) {
+            [self loadAbstractGamepadOverlayIfNeeded];
+        }
+    }
 }
 
-- (void)setupDisplayLink {
-    if (_displayLink != nil) return;
-    TemporarySettings* tempSettings = [[[DataManager alloc] init] getSettings];  //StreamFrameViewController retrieve the settings here.
-    if (@available(iOS 15.0, tvOS 15.0, *)) {
-        [_displayLink setPreferredFrameRateRange:CAFrameRateRangeMake(tempSettings.framerate.intValue,tempSettings.framerate.intValue, tempSettings.framerate.intValue)];
-    }
+- (void)toggleGamepadOverlayWithOverlayEnabled:(BOOL)overlayEnabled API_AVAILABLE(ios(13.0)){
+    OnScreenWidgetView.gamepadOverlayFLag = overlayEnabled;
+    OnScreenWidgetView.profileChangedDuringStreaming = true;
+
+    if(overlayEnabled) [self loadAbstractGamepadOverlayIfNeeded];
     else {
-        _displayLink.preferredFramesPerSecond = tempSettings.framerate.intValue;
+        [_virtualGamepadOverlay removeFromSuperview];
+        _virtualGamepadOverlay = nil;
     }
-    _displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(displayLinkTick:)];
-    [_displayLink addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSRunLoopCommonModes];
 }
 
-- (void)startDisplayLink {
-    _displayLink.paused = NO;
-}
-
-- (void)stopDisplayLink {
-    [_displayLink invalidate];
-    _displayLink = nil;
-}
-
-- (void)displayLinkTick:(CADisplayLink *)link {
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        LiSendKeyboardEvent(0xFF, KEY_ACTION_UP, 0);
+- (void)loadAbstractGamepadOverlayIfNeeded API_AVAILABLE(ios(13.0)){
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0 * NSEC_PER_SEC)),
+                   dispatch_get_main_queue(), ^{
+        
+        if (self->_virtualGamepadOverlay != nil || self.view.window == nil) {
+            return;
+        }
+        
+        BOOL usesXboxFaceButtons = self->_settings.emulatedControllerType.intValue == LI_CTYPE_XBOX;
+        
+        // CGFloat maxWidth = MIN(CGRectGetWidth(self.view.bounds) * 0.72, 620);
+        // CGFloat standardWidth = MAX(420, maxWidth);
+        
+        CGFloat standardWidth = GenericUtils.isIPhone ? 165 : 200;
+        
+        CGFloat standardhHeight = standardWidth / 1.82;
+        CGRect overlayFrame = CGRectMake(0, 0, standardWidth, standardhHeight);
+        
+        AbstractGamepadOverlayView *overlayView = [[AbstractGamepadOverlayView alloc] initWithFrame:overlayFrame usesPlayStationFaceButtons:!usesXboxFaceButtons];
+        overlayView.closeButtonDelegate = self;
+        overlayView.center = CGPointMake(self.view.bounds.size.width-standardWidth/2-20, self.view.bounds.size.height-standardhHeight/2-20);
+        overlayView.userInteractionEnabled = YES;
+        [self.view addSubview:overlayView];
+        [overlayView registerUserInteraction];
+        [overlayView scheduleCloseButtonHideIfNeeded];
+        
+        self->_virtualGamepadOverlay = overlayView;
     });
 }
 
+
+- (void)dealloc {
+    NSLog(@"dealloc StreamFrameViewController %f", CACurrentMediaTime());
+}
+
+- (void)setupTimer {
+    TemporarySettings* tempSettings = [[[DataManager alloc] init] getSettings];  //StreamFrameViewController retrieve the settings here.
+    safeTimer = [[SafeTimer alloc] initWithInterval:1.0/tempSettings.framerate.intValue delay:0 queueLabel:@"streamview.timer" handler:^{
+        dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INTERACTIVE, 0), ^{
+            LiSendKeyboardEvent(0xFF, KEY_ACTION_UP, 0);
+            // LiSendTouchEvent(LI_TOUCH_EVENT_UP, 200, 1, 1, 0, 0, 0, 0);
+        });
+    }];
+}
 
 @end

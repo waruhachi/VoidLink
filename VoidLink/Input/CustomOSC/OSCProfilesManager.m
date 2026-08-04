@@ -12,7 +12,6 @@
 #import "OSCProfilesManager.h"
 #import "OnScreenButtonState.h"
 #import "VoidLink-Swift.h"
-#import "LayoutOnScreenControlsViewController.h"
 #import "OnScreenControls.h"
 
 @implementation OSCProfilesManager
@@ -165,11 +164,24 @@ static CGRect layoutViewBounds;
 
 - (void) importEncodedProfiles:(NSMutableArray* )profilesEncoded {
     NSMutableArray* targetProfiles = [_currentProfiles mutableCopy]; //_currentProfiles is availabled as long as getAllProfiles was called before calling this method (_currentProfiles avoids frequent accessing persisted data)
-    OSCProfile* profile;
+    /*
     profile = [self findProfileByName:DEFAULT_TEMPLATE_NAME1 inProfileArray:targetProfiles];
     if(profile && targetProfiles.count > 1) [targetProfiles removeObject:profile];
     profile = [self findProfileByName:DEFAULT_TEMPLATE_NAME2 inProfileArray:targetProfiles];
     if(profile && targetProfiles.count > 1) [targetProfiles removeObject:profile];
+     */
+    
+    /*
+    NSString *bundleId = [[NSBundle mainBundle] bundleIdentifier];
+    bool importPencilProProfile = ([bundleId isEqualToString:@"com.voidlink.iOS"]
+                              || [bundleId isEqualToString:@"com.voidlinkextreme.iOS"]
+                              || [bundleId isEqualToString:@"com.voidlink.tf.debug10.iOS"]);
+
+    if(!importPencilProProfile && [GenericUtils isIPad]){
+        [profilesEncoded removeObjectAtIndex:1];
+    }
+     */
+    
     if(targetProfiles.count > 0) [targetProfiles removeObjectAtIndex:0];
     NSMutableArray* localEncodedPofiles = [self encodedProfilesFromArray:targetProfiles];
     [profilesEncoded addObjectsFromArray:localEncodedPofiles];
@@ -183,7 +195,6 @@ static CGRect layoutViewBounds;
     return ([UIDevice currentDevice].userInterfaceIdiom == UIUserInterfaceIdiomPhone);
 }
 
-
 - (void) importDefaultTemplates{
     NSString *filePath = [[NSBundle mainBundle] pathForResource: [self isIPhone] ? @"widgetTemplatesIPhone": @"widgetTemplates" ofType:@"bin"];
     if (filePath) {
@@ -196,6 +207,54 @@ static CGRect layoutViewBounds;
             NSSet *classes = [NSSet setWithObjects: [NSMutableData class], [NSMutableArray class], nil];
             profilesEncoded = [NSKeyedUnarchiver unarchivedObjectOfClasses:classes fromData:fileData error:&error];
             [self importEncodedProfiles:profilesEncoded];
+            
+            NSString *bundleId = [[NSBundle mainBundle] bundleIdentifier];
+            /*
+            bool isRegularTF = !([bundleId isEqualToString:@"com.voidlink.iOS"]
+                                      || [bundleId isEqualToString:@"com.voidlinkextreme.iOS"]
+                                      || [bundleId isEqualToString:@"com.voidlink.tf.debug10.iOS"]);
+
+            [self setProfileToSelected: GenericUtils.isIPhone ? 1 : (isRegularTF ? 1: 2)]; */
+            [self setProfileToSelected: 0];
+        }
+    }
+}
+
+- (void) updateDefaultTemplates{
+    NSString *filePath = [[NSBundle mainBundle] pathForResource: [self isIPhone] ? @"widgetTemplatesIPhone": @"widgetTemplates" ofType:@"bin"];
+    if (filePath) {
+        // 2. 读取二进制数据
+        NSError *error;
+        NSData *fileData = [NSData dataWithContentsOfFile:filePath options:NSDataReadingMappedIfSafe error:&error];
+        if (fileData && !error) {
+            NSSet *classes = [NSSet setWithObjects:[NSString class], [NSMutableData class], [NSMutableArray class], [OSCProfile class], [OnScreenButtonState class], nil];
+            NSMutableArray *defaultProfilesEncoded = [NSKeyedUnarchiver unarchivedObjectOfClasses:classes fromData:fileData error:nil];    // Decode the encoded array itself, NOT the objects contained in the array
+            OSCProfile *defaultProfileDecoded;
+            NSMutableArray *targetProfilesDecoded = [self getAllProfiles];
+            OSCProfile *newPencilProProfile;
+            bool pencilProProfileExisted = false;
+            for (NSData *profileEncoded in defaultProfilesEncoded) {
+                defaultProfileDecoded = [NSKeyedUnarchiver unarchivedObjectOfClasses: classes fromData:profileEncoded error: nil];
+                OSCProfile *targetProfile = [self findProfileByName:defaultProfileDecoded.name inProfileArray:targetProfilesDecoded];
+                if([defaultProfileDecoded.name isEqualToString:@"Pencil Pro"]){
+                    newPencilProProfile = [defaultProfileDecoded mutableCopy];
+                }
+                if(targetProfile){
+                    if([targetProfile.name isEqualToString:@"Pencil Pro"]){
+                        pencilProProfileExisted = true;
+                    }
+                    uint64_t targetIndex = [targetProfilesDecoded indexOfObject:targetProfile];
+                    targetProfilesDecoded[targetIndex] = defaultProfileDecoded;
+                }
+            }
+            if(newPencilProProfile && !pencilProProfileExisted){
+                if(newPencilProProfile) [targetProfilesDecoded insertObject:newPencilProProfile atIndex:1];
+            }
+            
+            NSMutableArray* targetPofilesEncoded = [self encodedProfilesFromArray:targetProfilesDecoded];
+            NSData *data = [NSKeyedArchiver archivedDataWithRootObject:targetPofilesEncoded requiringSecureCoding:YES error:nil];
+            [[NSUserDefaults standardUserDefaults] setObject:data forKey:@"OSCProfiles"];
+            [[NSUserDefaults standardUserDefaults] synchronize];
             [self setProfileToSelected:0];
         }
     }
@@ -207,10 +266,9 @@ static CGRect layoutViewBounds;
 #pragma mark - Getters
 
 - (NSMutableArray *) getAllProfiles {
-    
     NSData *profilesArrayEncoded = [[NSUserDefaults standardUserDefaults] objectForKey: @"OSCProfiles"];    // Get the encoded array of encoded OSC profiles from persistent storage
     NSSet *classes = [NSSet setWithObjects:[NSString class], [NSMutableData class], [NSMutableArray class], [OSCProfile class], [OnScreenButtonState class], nil];
-    
+
     NSMutableArray *profilesEncoded = [NSKeyedUnarchiver unarchivedObjectOfClasses:classes fromData:profilesArrayEncoded error:nil];    // Decode the encoded array itself, NOT the objects contained in the array
     
     /* Decode each of the encoded profiles, place them into an array, then return the array */
@@ -225,16 +283,34 @@ static CGRect layoutViewBounds;
     return profilesDecoded;
 }
 
+- (NSMutableArray *) decodeProfilesFrom:(NSMutableArray* )profilesEncoded {
+    NSSet *classes = [NSSet setWithObjects:[NSString class], [NSMutableData class], [NSMutableArray class], [OSCProfile class], [OnScreenButtonState class], nil];
+    NSMutableArray *profilesDecoded = [[NSMutableArray alloc] init];
+    OSCProfile *profileDecoded;
+    for (NSData *profileEncoded in profilesEncoded) {
+        
+        profileDecoded = [NSKeyedUnarchiver unarchivedObjectOfClasses: classes fromData:profileEncoded error: nil];
+        [profilesDecoded addObject: profileDecoded];
+    }
+    return profilesDecoded;
+}
+
 - (OSCProfile *) getSelectedProfile {
+    // NSLog(@"getAllProfiles test %f", CACurrentMediaTime());
     NSMutableArray *profiles = [self getAllProfiles];
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
     
     // NSString* persistedKey = @"widgetProfileUpdated-20251015";
-    NSString* persistedKey = @"widgetProfileUpdated-20251229";
+    // NSString* persistedKey = @"widgetProfileUpdated-20260322";
+    // NSString* persistedKey = @"widgetProfileUpdated-20260413-2";
+    // NSString* persistedKey = @"widgetProfileUpdated-20260430-1";
+    // NSString* persistedKey = @"widgetProfileUpdated-20260513-1";
+    NSString* persistedKey = @"widgetProfileUpdated-20260530";
     BOOL needImportDefaultTemplates = [defaults objectForKey:persistedKey] == nil;
     
     if(profiles.count == 0 || needImportDefaultTemplates){
-        [self importDefaultTemplates];
+        if(profiles.count == 0) [self importDefaultTemplates];
+        else [self updateDefaultTemplates];
         [[NSUserDefaults standardUserDefaults] setBool:YES forKey:persistedKey];
         [[NSUserDefaults standardUserDefaults] synchronize];
         profiles = [self getAllProfiles];
@@ -282,7 +358,7 @@ static CGRect layoutViewBounds;
 }
 
 
-- (bool) updateSelectedProfile:(NSMutableArray *) oscButtonLayers {
+- (bool) updateSelectedProfile:(NSMutableSet *) oscButtonLayers {
     NSMutableArray* buttonStatesEncoded = [self convertOnScreenControllerAndWidgetsToButtonStates:oscButtonLayers];
     if([self getIndexOfSelectedProfile]==0) return false;
     /*
@@ -291,6 +367,8 @@ static CGRect layoutViewBounds;
      */
     OSCProfile *selectedProfile = [self getSelectedProfile];
     selectedProfile.buttonStatesEncoded = buttonStatesEncoded;
+    selectedProfile.unfoldedExclusiveFolderSequence = OnScreenWidgetView.unfoldedExclusiveFolderSequence;
+    selectedProfile.postExclusiveUnfoldedSequences = OnScreenWidgetView.postExclusiveUnfoldedSequences;
     [self replaceSelectedProfileWith:selectedProfile overwriteDefault:NO];
     return true;
 }
@@ -341,28 +419,30 @@ static CGRect layoutViewBounds;
     return position;
 }
 
-- (NSMutableArray* ) convertOnScreenControllerAndWidgetsToButtonStates:(NSMutableArray *) oscButtonLayers {
+- (NSMutableArray* ) convertOnScreenControllerAndWidgetsToButtonStates:(NSMutableSet *) oscButtonLayers {
     /* iterate through each OSC button the user sees on screen, create an 'OnScreenButtonState' object from each button, encode each object, and then add each object to an array */
     /*
-    NSSet *validPositionButtonNames = [NSSet setWithObjects:
-        @"l2Button",
-        @"l1Button",
-        @"dPad",
-        @"selectButton",
-        @"leftStickBackground",
-        @"rightStickBackground",
-        @"r2Button",
-        @"r1Button",
-        @"aButton",
-        @"bButton",
-        @"xButton",
-        @"yButton",
-        @"startButton",
-        nil]; */
+     NSSet *validPositionButtonNames = [NSSet setWithObjects:
+     @"l2Button",
+     @"l1Button",
+     @"dPad",
+     @"selectButton",
+     @"leftStickBackground",
+     @"rightStickBackground",
+     @"r2Button",
+     @"r1Button",
+     @"aButton",
+     @"bButton",
+     @"xButton",
+     @"yButton",
+     @"startButton",
+     nil]; */
     NSMutableArray *buttonStatesEncoded = [[NSMutableArray alloc] init];
     
     // save on-screen game controller buttons & sticks as buttonstate:
     for (CALayer *oscButtonLayer in oscButtonLayers) {
+        if(oscButtonLayer.isHidden) continue;
+        
         CGPoint normalizedPosition = [self normalizeWidgetPosition:oscButtonLayer.position];
         OnScreenButtonState *buttonState = [[OnScreenButtonState alloc] initWithButtonName:oscButtonLayer.name buttonType:LegacyOnScreenControls andPosition:normalizedPosition];
         // add hidden attr here
@@ -386,24 +466,31 @@ static CGRect layoutViewBounds;
     
     // save on-screen widget views (keyboard & mouse command) as buttonstate:
     _widgetSizeTransition = keepWidgetSize;
-    for(OnScreenWidgetView* widgetView in OnScreenWidgetViews){
-        CGPoint normalizedPosition = [self normalizeWidgetPosition:widgetView.center];
+    for(OnScreenWidgetView* widgetView in OnScreenWidgetView.mapping.allValues){
+        CGPoint normalizedPosition = [self normalizeWidgetPosition:widgetView.storedCenter];
         OnScreenButtonState *buttonState = [[OnScreenButtonState alloc] initWithButtonName:widgetView.cmdString buttonType:CustomOnScreenWidget andPosition:normalizedPosition];
         buttonState.alias = widgetView.widgetLabel;
-        buttonState.identifier = widgetView.identifier;
+        buttonState.sequence = widgetView.sequence;
+        buttonState.sequenceSet = widgetView.sequenceSet;
+        buttonState.parentSequence = widgetView.parentSequence;
+        buttonState.autoDockTimer = widgetView.autoDockIdleDuration;
+        buttonState.dockedAlpha = widgetView.autoDockSettledAlpha;
+        buttonState.folded = widgetView.folded;
+        buttonState.revealMode = widgetView.revealMode;
+        buttonState.bulkMoveEnabled = widgetView.bulkMoveEnabled;
         buttonState.widthFactor = [self normalizeSizeWidthFactorWith:widgetView];
         buttonState.heightFactor = [self normalizeSizeHeightFactorWith:widgetView];
-        buttonState.componentSizeFactor = [self normalizeComponentSizeFactorWith:widgetView];
-        buttonState.backgroundAlpha = widgetView.backgroundAlpha;
-        buttonState.labelAlpha = widgetView.labelAlpha;
+        buttonState.backgroundAlpha = widgetView.originalBackgroundAlpha;
+        buttonState.labelAlpha = widgetView.originalLabelAlpha;
         buttonState.borderAlpha = widgetView.borderAlpha;
         buttonState.highlightAlpha = widgetView.highlightAlpha;
         buttonState.borderWidth = widgetView.borderWidth;
         buttonState.highlightSizeFactor = widgetView.highlightSizeFactor;
         buttonState.autoTapInterval = widgetView.autoTapInterval;
+        buttonState.autoTapRepeats = widgetView.autoTapRepeats;
         buttonState.vibrationStyle = widgetView.vibrationStyle;
         buttonState.mouseButtonAction = widgetView.mouseButtonAction;
-        buttonState.sensitivityFactorX = widgetView.sensitivityFactorX;
+        buttonState.animatesTransition = widgetView.animatesTransition;
         buttonState.sensitivityFactorY = widgetView.sensitivityFactorY;
         buttonState.slideThreshold = widgetView.slideThreshold;
         buttonState.yawFactor = widgetView.yawFactor;
@@ -411,15 +498,22 @@ static CGRect layoutViewBounds;
         buttonState.rollFactor = widgetView.rollFactor;
         buttonState.decelerationRateX = widgetView.decelerationRateX;
         buttonState.decelerationRateY = widgetView.decelerationRateY;
-        buttonState.stickIndicatorOffset = widgetView.stickIndicatorOffset;
         buttonState.widgetShape = widgetView.shape;
         buttonState.walkModeThreshold = widgetView.dWheelWalkModeThreshold;
         buttonState.minStickOffset = widgetView.minStickOffset;
         buttonState.buttonMode = widgetView.buttonMode;
-        
+        buttonState.sprintKeyActionType = widgetView.sprintKeyActionType;
+        buttonState.sprintKeyThreshold = widgetView.sprintKeyThreshold;
+        buttonState.walkKeyActionType = widgetView.walkKeyActionType;
+        buttonState.walkKeyThreshold = widgetView.walkKeyThreshold;
+        ///
+        buttonState.sensitivityFactorX = widgetView.sensitivityFactorX;
+        buttonState.componentSizeFactor = [self normalizeComponentSizeFactorWith:widgetView];
+        buttonState.touchPointAnchored = widgetView.touchPointAnchored;
+        buttonState.stickIndicatorOffset = widgetView.stickIndicatorOffset;
+
         NSData *buttonStateEncoded = [NSKeyedArchiver archivedDataWithRootObject:buttonState requiringSecureCoding:YES error:nil];
         [buttonStatesEncoded addObject: buttonStateEncoded];
-
     }
     return buttonStatesEncoded;
 }
@@ -443,7 +537,8 @@ static CGRect layoutViewBounds;
 }
 
 - (CGFloat)normalizeComponentSizeFactorWith:(OnScreenWidgetView* )widget{
-    if(widget.isStickWheel) {
+    if(widget.isStickWheel
+       || widget.isDisplacementBasedStickPad) {
         return widget.denormalizedComponentSizeFactor*widget.baselineDiameter/[self getReferenceLen] * 10000;
     }
     return 1;
@@ -475,7 +570,7 @@ static CGRect layoutViewBounds;
 
 - (OnScreenButtonState *)unarchiveButtonStateEncoded:(NSData *)data {
     OnScreenButtonState* buttonState;
-    buttonState = [NSKeyedUnarchiver unarchivedObjectOfClasses:[NSSet setWithObjects:[NSString class], [OnScreenButtonState class], nil]
+    buttonState = [NSKeyedUnarchiver unarchivedObjectOfClasses:[NSSet setWithObjects:[NSString class], [OnScreenButtonState class], [NSSet class], [NSNumber class], nil]
                                                     fromData:data
                                                     error:nil];
     return buttonState;

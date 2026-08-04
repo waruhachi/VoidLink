@@ -10,6 +10,7 @@
 
 #import "CustomEdgeSlideGestureRecognizer.h"
 #import <UIKit/UIGestureRecognizerSubclass.h>
+#import "VoidLink-Swift.h"
 
 @implementation CustomEdgeSlideGestureRecognizer
 UITouch* capturedUITouch;
@@ -27,6 +28,7 @@ CGFloat startPointX;
 - (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
     // [super touchesBegan:touches withEvent:event];
     UITouch *touch = [touches anyObject];
+    if(_excludePencilEvent && touch.type != UITouchTypeDirect) return;
     capturedUITouch = touch;
     startPointX = [capturedUITouch locationInView:self.view].x;
     CGFloat streamFrameViewWidthInPoints = self.view.frame.size.width;
@@ -50,7 +52,8 @@ CGFloat startPointX;
 
 - (void)touchesEnded:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
     // [super touchesEnded:touches withEvent:event];
-    
+    if(_excludePencilEvent && touches.anyObject.type != UITouchTypeDirect) return;
+    if(OnScreenWidgetView.deferSlideGestureDueToAutoDockRestore) return;
     if([touches containsObject:capturedUITouch]){
         CGFloat _endPointX = [capturedUITouch locationInView:self.view].x;
         CGFloat screenWidthInPoints = self.view.frame.size.width;

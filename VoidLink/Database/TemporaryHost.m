@@ -29,7 +29,7 @@
     
     self.address = host.address;
     
-    NSSet *classes = [NSSet setWithObjects: [NSMutableSet class], nil];
+    NSSet *classes = [NSSet setWithObjects: [NSMutableSet class], [NSString class], nil];
     NSError *error = nil;
     self.activeAddressPool = [NSKeyedUnarchiver unarchivedObjectOfClasses:classes fromData:host.activeAddressPool error:&error];
     if(self.activeAddressPool){
@@ -89,7 +89,7 @@
         NSError *error;
         parentHost.activeAddressPool = [NSKeyedArchiver archivedDataWithRootObject:self.activeAddressPool requiringSecureCoding:YES error:&error];
     }
-    else [self.activeAddressPool addObject:self.activeAddress];
+    else if(self.activeAddress) [self.activeAddressPool addObject:self.activeAddress];
     
     // NSLog(@"Persisting activeAddressPool, pool count %lu ... %f, host: %@", (unsigned long)self.activeAddressPool.count, CACurrentMediaTime(), self.name);
     

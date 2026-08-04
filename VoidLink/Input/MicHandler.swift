@@ -110,12 +110,12 @@ public class MicHandler: NSObject {
     private static func showSettingsAlert() {
         guard let topVC = topViewController() else { return }
         let alert = UIAlertController(
-            title:  SwiftLocalizationHelper.localizedString(forKey: "Microphone Permission") ,
-            message: SwiftLocalizationHelper.localizedString(forKey: "micPermissionTip"),
+            title:  LocalizationHelper.localizedString(forKey: "Microphone Permission") ,
+            message: LocalizationHelper.localizedString(forKey: "micPermissionTip"),
             preferredStyle: .alert
         )
-        alert.addAction(UIAlertAction(title: SwiftLocalizationHelper.localizedString(forKey: "Cancel"), style: .cancel, handler: nil))
-        alert.addAction(UIAlertAction(title: SwiftLocalizationHelper.localizedString(forKey: "Go to Settings") , style: .default, handler: { _ in
+        alert.addAction(UIAlertAction(title: LocalizationHelper.localizedString(forKey: "Cancel"), style: .cancel, handler: nil))
+        alert.addAction(UIAlertAction(title: LocalizationHelper.localizedString(forKey: "Go to Settings") , style: .default, handler: { _ in
             openSettings()
         }))
         topVC.present(alert, animated: true, completion: nil)
@@ -190,7 +190,7 @@ public class MicHandler: NSObject {
         // Optional: But defaults are fine. Only change when needed:
         opus_encoder_ctl_wrapper(enc, Int32(OPUS_SET_BITRATE_REQUEST), opus_int32(64000))      // Set bitrate
         opus_encoder_ctl_wrapper(enc, Int32(OPUS_SET_COMPLEXITY_REQUEST), opus_int32(5))         // Set complexity
-        opus_encoder_ctl_wrapper(enc, Int32(OPUS_SET_SIGNAL_REQUEST), OPUS_SIGNAL_MUSIC)      // Set signal type
+        opus_encoder_ctl_wrapper(enc, Int32(OPUS_SET_SIGNAL_REQUEST), OPUS_SIGNAL_VOICE)      // Set signal type
     }
 
     @objc public func startTapping() {
@@ -248,7 +248,7 @@ public class MicHandler: NSObject {
                 var packet = [UInt8](repeating: 0, count: 4000)
                 guard let enc = self.opusEncoder else {return}
                 let outBytes = opus_encode(enc, chunk, 960, &packet, Int32(packet.count))
-                sendMicrophoneData(packet, outBytes)
+                sendMicrophoneOpusData(packet, outBytes)
                 let removeCount = min(960, pcm16BufferDeque.count)
                 if removeCount > 0 {
                     pcm16BufferDeque.removeFirst(removeCount)
@@ -264,7 +264,7 @@ public class MicHandler: NSObject {
                 var packet = [UInt8](repeating: 0, count: 4000)
                 guard let enc = self.opusEncoder else {return}
                 let outBytes = opus_encode(enc, chunk, 960, &packet, Int32(packet.count))
-                sendMicrophoneData(packet, outBytes)
+                sendMicrophoneOpusData(packet, outBytes)
                 let removeCount = min(960, pcm16BufferArray.count)
                 if removeCount > 0 {
                     pcm16BufferArray.removeFirst(removeCount)

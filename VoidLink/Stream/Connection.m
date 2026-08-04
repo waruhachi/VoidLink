@@ -400,6 +400,44 @@ void AudioEngineInit(int sampleRate, int channelCount) {
     [audioPlayerNode play];
 }
 
++ (void)resetSysAudioPlayback {
+    audioSessionInterrupted = true;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0),
+                   dispatch_get_main_queue(), ^{
+        @try {
+            if (audioPlayerNode) {
+                [audioPlayerNode stop];
+            }
+
+            if (audioEngine) {
+                [audioEngine stop];
+                [audioEngine reset];
+
+                if (audioPlayerNode) {
+                    [audioEngine disconnectNodeInput:audioPlayerNode];
+                    [audioEngine disconnectNodeOutput:audioPlayerNode];
+                    [audioEngine detachNode:audioPlayerNode];
+                }
+            }
+
+            audioEngine = nil;
+            audioPlayerNode = nil;
+
+            AudioEngineInit(audioConfig.sampleRate, audioConfig.channelCount);
+        }
+        @catch (NSException *exception) {
+            NSLog(@"resetSysAudioPlayback failed: %@, reason: %@",
+                  exception.name,
+                  exception.reason);
+        }
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)),
+                       dispatch_get_main_queue(), ^{
+            audioSessionInterrupted = false;
+        });
+    });
+}
+
+
 void ArDecodeAndPlaySample(char* sampleData, int sampleLength)
 {
     if(appDidEnterBackgroundWithoutPip && muteInBackground) return;

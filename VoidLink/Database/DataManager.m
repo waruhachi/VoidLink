@@ -55,7 +55,8 @@
     return uid;
 }
 
-- (void) saveSettingsWithBitrate:(NSInteger)bitrate
+- (void) saveSettings:(Settings*)settings
+                     withBitrate:(NSInteger)bitrate
                        framerate:(NSInteger)framerate
                           height:(NSInteger)height
                            width:(NSInteger)width
@@ -80,7 +81,8 @@
              showKeyboardToolbar:(BOOL)showKeyboardToolbar
                    optimizeGames:(BOOL)optimizeGames
                  multiController:(BOOL)multiController
-               buttonVisualFeedback:(BOOL)buttonVisualFeedback
+            buttonVisualFeedback:(BOOL)buttonVisualFeedback
+              touchPointTracking:(BOOL)touchPointTracking
                  swapABXYButtons:(BOOL)swapABXYButtons
                        audioOnPC:(BOOL)audioOnPC
                      redirectMic:(BOOL)redirectMic
@@ -125,10 +127,16 @@
   controllerMousePointerVelocity:(CGFloat)controllerMousePointerVelocity
              controllerMouseExpo:(CGFloat)controllerMouseExpo
         controllerGyroSwitchMode:(NSInteger)controllerGyroSwitchMode
+             enableFrameTimebase:(BOOL)enableFrameTimebase
+               asyncFrameDequeue:(BOOL)asyncFrameDequeue
+        sdrPerformanceWorkaround:(BOOL)sdrPerformanceWorkaround
+              softKeyboardHeight:(CGFloat)softKeyboardHeight
+                   globeAsEscape:(BOOL)globeAsEscape
           backgroundSessionTimer:(NSInteger)backgroundSessionTimer{
-
+    
+    __block Settings* settingsToSave = settings;
     [_managedObjectContext performBlockAndWait:^{
-        Settings* settingsToSave = [self retrieveSettings];
+        if(!settingsToSave) settingsToSave = [self retrieveSettings];
         settingsToSave.framerate = [NSNumber numberWithInteger:framerate];
         settingsToSave.bitrate = [NSNumber numberWithInteger:bitrate];
         settingsToSave.height = [NSNumber numberWithInteger:height];
@@ -155,12 +163,14 @@
         settingsToSave.optimizeGames = optimizeGames;
         settingsToSave.multiController = multiController;
         settingsToSave.buttonVisualFeedback = buttonVisualFeedback;
+        settingsToSave.touchPointTracking = touchPointTracking;
         settingsToSave.swapABXYButtons = swapABXYButtons;
         settingsToSave.playAudioOnPC = audioOnPC;
         settingsToSave.redirectMic = redirectMic;
         settingsToSave.useBuiltinMic = useBuiltinMic;
         settingsToSave.preferredCodec = preferredCodec;
         settingsToSave.enableYUV444 = enableYUV444;
+        settingsToSave.sdrPerformanceWorkaround = sdrPerformanceWorkaround;
         settingsToSave.enablePIP = enablePIP;
         settingsToSave.fullColorRange = fullColorRange;
         settingsToSave.enableHdr = enableHdr;
@@ -176,6 +186,8 @@
         settingsToSave.backroundSessionTimer = [NSNumber numberWithInteger:backgroundSessionTimer];
 
         settingsToSave.frameQueueSize = [NSNumber numberWithInteger:frameQueueSize];
+        settingsToSave.enableFrameTimebase = enableFrameTimebase;
+        settingsToSave.asyncFrameDequeue = asyncFrameDequeue;
         settingsToSave.enableGraphs = enableGraphs;
         settingsToSave.graphOpacity = [NSNumber numberWithInteger:graphOpacity];
         settingsToSave.renderingBackend = [NSNumber numberWithInteger:renderingBackend];
@@ -199,6 +211,8 @@
         settingsToSave.mapControllerToMouse = mapControllerToMouse;
         settingsToSave.controllerMousePointerVelocity = [NSNumber numberWithFloat:controllerMousePointerVelocity];
         settingsToSave.controllerMouseExpo = [NSNumber numberWithFloat:controllerMouseExpo];
+        settingsToSave.softKeyboardHeight = softKeyboardHeight;
+        settingsToSave.globeAsEscape = globeAsEscape;
         settingsToSave.rememberFoldState = rememberFoldState;
         [self saveData];
     }];

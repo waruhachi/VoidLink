@@ -8,6 +8,9 @@
 
 
 import GameController
+import Combine
+import CoreGraphics
+import Foundation
 
 @objc enum ControllerButton: Int {
     // Face buttons
@@ -53,7 +56,9 @@ import GameController
 @objc class ControllerUtil: NSObject {
     
     static private let stickMaxOffset:CGFloat = 0x7FFE
-    
+    @objc static var navigationActionTriggered:Bool = false
+    @objc static private(set) var navigationActionTriggeredPrivate:Bool = false
+
     @objc static func listen(
         controller: GCController,
         swapABXY: Bool,
@@ -74,6 +79,11 @@ import GameController
         // 单一 gamepad.valueChangedHandler
         gamepad.valueChangedHandler = { gamepad, element in
             handler(buttonDict, gamepad, element)
+            if #available(iOS 13.0, *) {
+                if controller.playerIndex == .index1 {
+                    GamepadOverlayStateCenter.shared.publish(snapshot: GamepadOverlaySnapshot(gamepad: gamepad))
+                }
+            }
         }
     }
     
@@ -156,6 +166,8 @@ import GameController
         return result
     }
     
+    @objc static var activeGCControllers:NSMutableSet = NSMutableSet()
+    
     @objc static func string(for button: ControllerButton) -> String {
         switch button {
         case .a: return "A"
@@ -163,10 +175,10 @@ import GameController
         case .x: return "X"
         case .y: return "Y"
             
-        case .dpadUp: return SwiftLocalizationHelper.localizedString(forKey: "Up")
-        case .dpadDown: return SwiftLocalizationHelper.localizedString(forKey: "Down")
-        case .dpadLeft: return SwiftLocalizationHelper.localizedString(forKey: "Left")
-        case .dpadRight: return SwiftLocalizationHelper.localizedString(forKey: "Right")
+        case .dpadUp: return LocalizationHelper.localizedString(forKey: "Up")
+        case .dpadDown: return LocalizationHelper.localizedString(forKey: "Down")
+        case .dpadLeft: return LocalizationHelper.localizedString(forKey: "Left")
+        case .dpadRight: return LocalizationHelper.localizedString(forKey: "Right")
             
         case .leftShoulder: return "LB"
         case .rightShoulder: return "RB"
@@ -178,17 +190,17 @@ import GameController
         case .back: return "Back"
         case .special: return "Home"
             
-        case .paddle1: return SwiftLocalizationHelper.localizedString(forKey: "Paddle1")
-        case .paddle2: return SwiftLocalizationHelper.localizedString(forKey: "Paddle2")
-        case .paddle3: return SwiftLocalizationHelper.localizedString(forKey: "Paddle3")
-        case .paddle4: return SwiftLocalizationHelper.localizedString(forKey: "Paddle4")
-        case .touchpadButton: return SwiftLocalizationHelper.localizedString(forKey: "Touch button")
+        case .paddle1: return LocalizationHelper.localizedString(forKey: "Paddle1")
+        case .paddle2: return LocalizationHelper.localizedString(forKey: "Paddle2")
+        case .paddle3: return LocalizationHelper.localizedString(forKey: "Paddle3")
+        case .paddle4: return LocalizationHelper.localizedString(forKey: "Paddle4")
+        case .touchpadButton: return LocalizationHelper.localizedString(forKey: "Touch button")
         case .misc: return "Misc"
             
         case .leftTrigger: return "LT"
         case .rightTrigger: return "RT"
             
-        case .null: return SwiftLocalizationHelper.localizedString(forKey: "Null")
+        case .null: return LocalizationHelper.localizedString(forKey: "Null")
             
         default: return "UNKNOWN"
         }
@@ -218,5 +230,72 @@ import GameController
         let circulatedX = targetHypot*(offsetVector.dx/vectorHypot)
         let circulatedY = targetHypot*(offsetVector.dy/vectorHypot)
         return CGVector(dx: circulatedX, dy: circulatedY)
+    }
+}
+
+@available(iOS 13.0, *)
+struct GamepadOverlaySnapshot: Equatable {
+    var pressedButtons: Set<ControllerButton> = []
+    var dpadHighlight: Int = 0
+    var leftStick: CGPoint = .zero
+    var rightStick: CGPoint = .zero
+    var leftTrigger: CGFloat = 0
+    var rightTrigger: CGFloat = 0
+
+    static let idle = GamepadOverlaySnapshot()
+
+    init() {}
+
+    init(gamepad: GCExtendedGamepad) {
+        var pressedButtons = Set<ControllerButton>()
+
+        if gamepad.buttonA.isPressed { pressedButtons.insert(.a) }
+        if gamepad.buttonB.isPressed { pressedButtons.insert(.b) }
+        if gamepad.buttonX.isPressed { pressedButtons.insert(.x) }
+        if gamepad.buttonY.isPressed { pressedButtons.insert(.y) }
+        if gamepad.leftShoulder.isPressed { pressedButtons.insert(.leftShoulder) }
+        if gamepad.rightShoulder.isPressed { pressedButtons.insert(.rightShoulder) }
+        if gamepad.buttonMenu.isPressed { pressedButtons.insert(.menu) }
+        if gamepad.buttonOptions?.isPressed == true { pressedButtons.insert(.back) }
+        if #available(iOS 14.0, *), gamepad.buttonHome?.isPressed == true { pressedButtons.insert(.special) }
+        if gamepad.leftThumbstickButton?.isPressed == true { pressedButtons.insert(.leftStickButton) }
+        if gamepad.rightThumbstickButton?.isPressed == true { pressedButtons.insert(.rightStickButton) }
+
+        var dpadHighlight = 0
+        if gamepad.dpad.up.isPressed { dpadHighlight |= DPadHighlight.up.rawValue }
+        if gamepad.dpad.down.isPressed { dpadHighlight |= DPadHighlight.down.rawValue }
+        if gamepad.dpad.left.isPressed { dpadHighlight |= DPadHighlight.left.rawValue }
+        if gamepad.dpad.right.isPressed { dpadHighlight |= DPadHighlight.right.rawValue }
+
+        self.pressedButtons = pressedButtons
+        self.dpadHighlight = dpadHighlight
+        self.leftStick = CGPoint(
+            x: CGFloat(max(-1, min(1, gamepad.leftThumbstick.xAxis.value))),
+            y: CGFloat(max(-1, min(1, gamepad.leftThumbstick.yAxis.value)))
+        )
+        self.rightStick = CGPoint(
+            x: CGFloat(max(-1, min(1, gamepad.rightThumbstick.xAxis.value))),
+            y: CGFloat(max(-1, min(1, gamepad.rightThumbstick.yAxis.value)))
+        )
+        self.leftTrigger = CGFloat(max(0, min(1, gamepad.leftTrigger.value)))
+        self.rightTrigger = CGFloat(max(0, min(1, gamepad.rightTrigger.value)))
+    }
+}
+
+@available(iOS 13.0, *)
+@objc(GamepadOverlayStateCenter)
+final class GamepadOverlayStateCenter: NSObject, ObservableObject {
+    static let shared = GamepadOverlayStateCenter()
+
+    @Published private(set) var snapshot: GamepadOverlaySnapshot = .idle
+
+    func publish(snapshot: GamepadOverlaySnapshot) {
+        DispatchQueue.main.async {
+            self.snapshot = snapshot
+        }
+    }
+
+    @objc static func clearSharedState() {
+        shared.publish(snapshot: .idle)
     }
 }

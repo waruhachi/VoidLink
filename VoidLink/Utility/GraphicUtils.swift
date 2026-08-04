@@ -11,38 +11,46 @@ import Foundation
 import SVGKit
 
 @objc public class GraphicUtils: NSObject {
-    @objc public class func makeCenteredSVGLayer(
+    @objc public static func makeSVGLayer(
         from file: String,
         in container: CALayer,
+        at normalizedPosition: CGPoint = .zero,
         targetSize: CGSize
     ) -> CALayer {
 
-        guard let svg = SVGKImage(named: file) else {
-            fatalError("Failed to load SVG \(file)")
+        guard let url = Bundle.main.url(forResource: file, withExtension: "svg"),
+              let data = try? Data(contentsOf: url) else {
+            return CALayer()
         }
 
-        return _makeCenteredSVGLayer(
+        guard let svg = SVGKImage(data: data) else {
+            fatalError("Failed to load SVG \(file)")
+        }
+        
+        return _makeSVGLayer(
             from: svg,
             in: container,
+            at: normalizedPosition,
             targetSize: targetSize
         )
     }
     
-    public class func makeCenteredSVGLayer(
+    public static func makeCenteredSVGLayer(
         from svg: SVGKImage,
         in container: CALayer,
         targetSize: CGSize
     ) -> CALayer {
-        return _makeCenteredSVGLayer(
+        return _makeSVGLayer(
             from: svg,
             in: container,
             targetSize: targetSize
         )
     }
 
-    @objc public class func _makeCenteredSVGLayer(
+    @objc public static func _makeSVGLayer(
         from svg: SVGKImage,
         in container: CALayer,
+        at normalizedPosition: CGPoint = .zero,
         targetSize: CGSize,
         getWrapperLayer: Bool = true
     ) -> CALayer {
@@ -64,14 +72,15 @@ import SVGKit
                 y: -unionRect.origin.y
             )
         )
-
+        
+        let realPosition = (normalizedPosition == .zero
+                            ? CGPoint(x: container.bounds.midX,y: container.bounds.midY)
+                            : CGPoint(x: container.bounds.width*normalizedPosition.x,y: container.bounds.height*normalizedPosition.y))
+        
         let wrapper = CALayer()
         wrapper.bounds = CGRect(origin: .zero, size: unionRect.size)
         wrapper.anchorPoint = CGPoint(x: 0.5, y: 0.5)
-        wrapper.position = CGPoint(
-            x: container.bounds.midX,
-            y: container.bounds.midY
-        )
+        wrapper.position = realPosition
         
         let scale = min(
             targetSize.width / unionRect.width,
@@ -93,15 +102,39 @@ import SVGKit
         wrappedLayer.bounds = CGRect(x: 0, y: 0, width: container.bounds.size.width, height: container.bounds.size.height)
         wrappedLayer.position = CGPoint(x: container.bounds.midX, y: container.bounds.midY)
         wrappedLayer.insertSublayer(wrapper, at: 0)
-
+        
         return wrappedLayer
     }
     
-    @objc public class func changeColor(layer: CALayer, color: UIColor) {
+    @objc public static func changeColor(layer: CALayer, color: UIColor) {
         if let shape = layer as? CAShapeLayer {
             shape.fillColor = color.cgColor
             shape.strokeColor = color.cgColor
         }
         layer.sublayers?.forEach { changeColor(layer: $0, color: color) }
+    }
+    
+    @objc public static func makeTouchTrackpoint(in view:UIView) -> CAShapeLayer {
+        var trackPoint = CAShapeLayer()
+        let path = UIBezierPath(
+            arcCenter: CGPoint(x: 0, y: 0),
+            radius: GenericUtils.isIPhone() ? 12 : 15,
+            startAngle: 0,
+            endAngle: CGFloat.pi * 2,
+            clockwise: true
+        )
+
+        trackPoint = CAShapeLayer()
+        trackPoint.path = path.cgPath
+
+        trackPoint.fillColor = UIColor.white.withAlphaComponent(0.3).cgColor
+        trackPoint.strokeColor = UIColor.clear.cgColor
+        trackPoint.lineWidth = 0
+        
+        view.layer.addSublayer(trackPoint)
+        trackPoint.position = view.center
+        trackPoint.isHidden = true
+
+        return trackPoint
     }
 }

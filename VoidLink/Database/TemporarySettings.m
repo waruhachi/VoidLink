@@ -88,9 +88,12 @@
     self.audioConfig = settings.audioConfig;
     self.preferredCodec = settings.preferredCodec;
     self.enableYUV444 = settings.enableYUV444;
+    self.sdrPerformanceWorkaround = settings.sdrPerformanceWorkaround;
     self.enablePIP = settings.enablePIP;
     self.fullColorRange = settings.fullColorRange;
     self.frameQueueSize = settings.frameQueueSize;
+    self.enableFrameTimebase  = settings.enableFrameTimebase;
+    self.asyncFrameDequeue = settings.asyncFrameDequeue;
     self.playAudioOnPC = settings.playAudioOnPC;
     self.redirectMic = settings.redirectMic;
     self.useBuiltinMic = settings.useBuiltinMic;
@@ -98,6 +101,7 @@
     self.optimizeGames = settings.optimizeGames;
     self.multiController = settings.multiController;
     self.buttonVisualFeedback = settings.buttonVisualFeedback;
+    self.touchPointTracking = settings.touchPointTracking;
     self.swapABXYButtons = settings.swapABXYButtons;
     self.onscreenControls = settings.onscreenControls;
     self.gyroMode = settings.gyroMode;
@@ -115,6 +119,7 @@
     self.slideToSettingsDistance = settings.slideToSettingsDistance;
     self.liftStreamViewForKeyboard = settings.liftStreamViewForKeyboard;
     self.showKeyboardToolbar = settings.showKeyboardToolbar;
+    self.softKeyboardHeight = settings.softKeyboardHeight;
     self.touchMoveEventInterval = settings.touchMoveEventInterval;
     self.touchPointerVelocityFactor = settings.touchPointerVelocityFactor;
     self.mousePointerVelocityFactor = settings.mousePointerVelocityFactor;
@@ -135,6 +140,9 @@
     self.gyroBiasX = settings.gyroBiasX;
     self.gyroBiasY = settings.gyroBiasY;
     self.gyroBiasZ = settings.gyroBiasZ;
+    self.controllerGyroBiasX = settings.controllerGyroBiasX;
+    self.controllerGyroBiasY = settings.controllerGyroBiasY;
+    self.controllerGyroBiasZ = settings.controllerGyroBiasZ;
     self.singleTapSensitivity = settings.singleTapSensitivity;
     self.backgroundSessionTimer = settings.backroundSessionTimer;
     self.edgeSlidingSensitivity = settings.edgeSlidingSensitivity;
@@ -160,6 +168,11 @@
     self.controllerMouseStick = settings.controllerMouseStick;
     self.controllerMousePointerVelocity = settings.controllerMousePointerVelocity;
     self.controllerMouseExpo = settings.controllerMouseExpo;
+    self.globeAsEscape = settings.globeAsEscape;
+    
+    // Pencil settings:
+    self.pencilTickMode = settings.pencilTickMode;
+    self.pencilTickIntervalUs = settings.pencilTickIntervalUs;
 
 #endif
     

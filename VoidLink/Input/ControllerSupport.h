@@ -15,7 +15,10 @@
 
 - (void)gamepadPresenceChanged;
 - (void)mousePresenceChanged;
+- (void)mouseConnected;
+- (void)keyboardConnected;
 - (void)streamExitRequested;
+- (void)controllerArrivalWithPlayerIndex:(int8_t)index;
 
 @end
 
@@ -47,6 +50,7 @@
 -(void) rumbleTriggers:(uint16_t)controllerNumber leftTrigger:(uint16_t)leftTrigger rightTrigger:(uint16_t)rightTrigger;
 -(void) setMotionEventState:(uint16_t)controllerNumber motionType:(uint8_t)motionType reportRateHz:(uint16_t)reportRateHz;
 -(void) setControllerLed:(uint16_t)controllerNumber r:(uint8_t)r g:(uint8_t)g b:(uint8_t)b;
+-(void) updateTimerStateForOsc;
 
 -(uint16_t) getActiveGamepadMask;
 

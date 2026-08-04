@@ -49,6 +49,7 @@ NS_ASSUME_NONNULL_BEGIN
 // - (NSData* )getSelectedEncodedProfile;
 - (void) importEncodedProfiles:(NSMutableArray* )profilesEncoded;
 - (OnScreenButtonState *)unarchiveButtonStateEncoded:(NSData *)data;
+- (void) updateDefaultTemplates;
 - (void) importDefaultTemplates;
 
 #pragma mark - Setters
@@ -64,7 +65,8 @@ NS_ASSUME_NONNULL_BEGIN
  */
 - (void) duplicateSelectedProfileWithName:(NSString*)name;
 
-- (bool) updateSelectedProfile:(NSMutableArray *) oscButtonLayers;
+- (bool) updateSelectedProfile:(NSMutableSet *) oscButtonLayers;
+
 /**
  * Delete current selected profile.
  */

@@ -53,14 +53,18 @@ static StreamView* streamView;
     _latestRelativePoint.y = _previousRelativePoint.y + pointerVelocityFactor * (_latestPoint.y - _previousPoint.y);
 }
 
-+ (void)initContextWithView:(StreamView*)view andSettings:(TemporarySettings*)settings {
++ (void)initContextWithView:(StreamView*)view profile:(OSCProfile*)profile {
     streamView = view;
     streamViewWidth = streamView.frame.size.width;
     fixedResetCoordX = streamViewWidth * 0.3;
     streamViewHeight = streamView.frame.size.height;
     fixedResetCoordY = streamViewHeight * 0.4;
-    pointerVelocityFactor = settings.touchPointerVelocityFactor.floatValue;
+    pointerVelocityFactor = profile.touchPointerVelocityFactor;
     NSLog(@"stream wdith %f, stream height %f", streamViewWidth, streamViewHeight);
+}
+
++ (void)cleanUpContext {
+    streamView = nil;
 }
 
 @end

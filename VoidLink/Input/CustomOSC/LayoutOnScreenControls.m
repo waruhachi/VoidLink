@@ -10,9 +10,8 @@
 //
 
 #import "LayoutOnScreenControls.h"
-#import "OSCProfilesTableViewController.h"
 #import "OnScreenButtonState.h"
-#import "OSCProfilesManager.h"
+#import "VoidLink-Swift.h"
 
 
 @interface LayoutOnScreenControls ()
@@ -44,7 +43,7 @@
 
     layoutChanges = [[NSMutableArray alloc] init];  // will contain OSC button layout changes the user has made for this profile
             
-    [self drawButtons];
+    // [self drawButtons];
     [self drawGuidelines];  // add the blue guidelines that appear when button is being tapped and dragged
     
     return self;
@@ -55,35 +54,45 @@
 /**
  * This method overrides the superclass's drawButtons method. The purpose of this method is to create a dPad parent layer, and add the four dPad buttons to it so that the user can drag the entire dPad around, directional buttons and all, as one unit as is the expected behavior. Note that we do not want the four dPad buttons to be child layers of a CALayer parent layer on the game stream view since the touch logic implemented for the four dPad buttons on the game stream view is written assuming the dPad buttons are not children of another parent CALayer
  */
-- (void) drawButtons {
-    [super setDPadCenter];    // Set custom position for D-Pad here
-    [super setAnalogStickPositions]; // Set custom position for analog sticks here
+- (void) drawButtons:(OSCProfile* )profile {
+    // [super regenLayerPool];
+    [super setDPadCenter:profile];    // Set custom position for D-Pad here
+    [super setAnalogStickPositions:profile]; // Set custom position for analog sticks here
     [super drawBumpers];
-    [super drawButtons];
+    [super drawButtons:profile];
     
+    /*
+     UIImage* downButtonImage = [UIImage imageNamed:@"DownButton"];
+     UIImage* rightButtonImage = [UIImage imageNamed:@"RightButton"];
+     UIImage* upButtonImage = [UIImage imageNamed:@"UpButton"];
+     UIImage* leftButtonImage = [UIImage imageNamed:@"LeftButton"];
+     */
     
-    UIImage* downButtonImage = [UIImage imageNamed:@"DownButton"];
-    UIImage* rightButtonImage = [UIImage imageNamed:@"RightButton"];
-    UIImage* upButtonImage = [UIImage imageNamed:@"UpButton"];
-    UIImage* leftButtonImage = [UIImage imageNamed:@"LeftButton"];
     
     //  create dPad background layer
-    self._dPadBackground = [CALayer layer];
-    self._dPadBackground.name = @"dPad";
-    self._dPadBackground.frame = CGRectMake(self.D_PAD_CENTER_X,
-                                      self.D_PAD_CENTER_Y,
-                                      self._leftButton.frame.size.width * 2 + BUTTON_DIST,
-                                      self._leftButton.frame.size.width * 2 + BUTTON_DIST);
-    self._dPadBackground.position = CGPointMake(self.D_PAD_CENTER_X, self.D_PAD_CENTER_Y);    // since dPadBackground's dimensions have change after settings its width and height you need to reset its position again here
-    [self.OSCButtonLayers addObject:self._dPadBackground];
-    [_view.layer addSublayer:self._dPadBackground];
-
-    // add dPad buttons to parent layer
-    [self._dPadBackground addSublayer:self._downButton];
-    [self._dPadBackground addSublayer:self._rightButton];
-    [self._dPadBackground addSublayer:self._upButton];
-    [self._dPadBackground addSublayer:self._leftButton];
-
+    if([self.OSCButtonLayerPool containsObject:self._upButton]){
+        [self.OSCButtonLayerPool addObject:self._dPadBackground];
+        self._dPadBackground.name = @"dPad";
+        self._dPadBackground.frame = CGRectMake(self.D_PAD_CENTER_X,
+                                                self.D_PAD_CENTER_Y,
+                                                self._leftButton.frame.size.width * 2 + BUTTON_DIST,
+                                                self._leftButton.frame.size.width * 2 + BUTTON_DIST);
+        self._dPadBackground.position = CGPointMake(self.D_PAD_CENTER_X, self.D_PAD_CENTER_Y);    // since dPadBackground's dimensions have change after settings its width and height you need to reset its position again here
+        [self.OSCButtonLayerPool addObject:self._dPadBackground];
+        [_view.layer addSublayer:self._dPadBackground];
+        
+        // add dPad buttons to parent layer
+        [self._dPadBackground addSublayer:self._downButton];
+        [self._dPadBackground addSublayer:self._rightButton];
+        [self._dPadBackground addSublayer:self._upButton];
+        [self._dPadBackground addSublayer:self._leftButton];
+    }
+    
+    NSLog(@"layer name ttttttttttt============================");
+    for(CALayer* buttonLayer in self.OSCButtonLayerPool){
+        NSLog(@"layer name %@", buttonLayer.name);
+    }
+    
     [self resizeControllerLayerWith:self._dPadBackground and:_dPadSizeFactor];
     
     /*
@@ -128,43 +137,56 @@
      */
     
     horizontalGuideline.backgroundColor = [UIColor blueColor]; // change horizontal guideline back to blue if it doesn't line up with one of the on screen buttons
-    for (CALayer *button in self.OSCButtonLayers) { // horizontal guideline position check
+    OnScreenWidgetView.isHorizontallyAligned = false;
+    for (CALayer *button in self.OSCButtonLayerPool) { // horizontal guideline position check
         if ((layerBeingDragged != button) && !button.isHidden) {
             if ((horizontalGuideline.center.y < button.position.y + 1) &&
                 (horizontalGuideline.center.y > button.position.y - 1)) {
                 horizontalGuideline.backgroundColor = [UIColor yellowColor];
+                OnScreenWidgetView.isHorizontallyAligned = true;
+                OnScreenWidgetView.alignedY = button.position.y;
                 break;
             }
         }
     }
     for(UIView* view in self.layoutToolVC.view.subviews){
         if ([view isKindOfClass:[OnScreenWidgetView class]] && view != widget) {
-            if ((horizontalGuideline.center.y < view.center.y + 1) && (horizontalGuideline.center.y > view.center.y - 1)) {
+            OnScreenWidgetView* otherWidget = (OnScreenWidgetView *) view;
+            if(widget.isHidden) continue;
+            if(widget.isFolder && widget.bulkMoveEnabled && [widget.sequenceSet containsObject:@(otherWidget.sequence)]) break;
+            if((horizontalGuideline.center.y < view.center.y + 1) && (horizontalGuideline.center.y > view.center.y - 1)) {
                 horizontalGuideline.backgroundColor = [UIColor yellowColor];
+                OnScreenWidgetView.isHorizontallyAligned = true;
+                OnScreenWidgetView.alignedY = view.center.y;
                 break;
             }
         }
     }
 
     verticalGuideline.backgroundColor = [UIColor blueColor]; // change vertical guideline back to blue if it doesn't line up with one of the on screen buttons
-    for (CALayer *button in self.OSCButtonLayers) { // vertical guideline position check
+    OnScreenWidgetView.isVerticallyAligned = false;
+    for (CALayer *button in self.OSCButtonLayerPool) { // vertical guideline position check
         if ((layerBeingDragged != button) && !button.isHidden) {
             if ((verticalGuideline.center.x < button.position.x + 1) &&
                 (verticalGuideline.center.x > button.position.x - 1)) {
                 verticalGuideline.backgroundColor = [UIColor yellowColor];
+                OnScreenWidgetView.isVerticallyAligned = true;
+                OnScreenWidgetView.alignedX = button.position.x;
                 break;
             }
         }
     }
     for(UIView* view in self.layoutToolVC.view.subviews){
         if ([view isKindOfClass:[OnScreenWidgetView class]] && view != widget) {
+            if(view.isHidden) continue;
             if ((verticalGuideline.center.x < view.center.x + 1) && (verticalGuideline.center.x > view.center.x - 1)) {
                 verticalGuideline.backgroundColor = [UIColor yellowColor];
+                OnScreenWidgetView.isVerticallyAligned = true;
+                OnScreenWidgetView.alignedX = view.center.x;
                 break;
             }
         }
     }
-     
 }
 
 - (void) updateGuidelinesForLegacyOnScreenControls{
@@ -177,7 +199,7 @@
      -Change vertical guideline color to yellow if its x-position is almost equal to that of one of the buttons on screen.
      */
     horizontalGuideline.backgroundColor = [UIColor blueColor]; // change horizontal guideline back to blue if it doesn't line up with one of the on screen buttons
-    for (CALayer *button in self.OSCButtonLayers) { // horizontal guideline position check
+    for (CALayer *button in self.OSCButtonLayerPool) { // horizontal guideline position check
         if ((layerBeingDragged != button) && !button.isHidden) {
             if ((horizontalGuideline.center.y < button.position.y + 1) &&
                 (horizontalGuideline.center.y > button.position.y - 1)) {
@@ -196,7 +218,7 @@
         }
     }
     verticalGuideline.backgroundColor = [UIColor blueColor]; // change vertical guideline back to blue if it doesn't line up with one of the on screen buttons
-    for (CALayer *button in self.OSCButtonLayers) { // vertical guideline position check
+    for (CALayer *button in self.OSCButtonLayerPool) { // vertical guideline position check
         if ((layerBeingDragged != button) && !button.isHidden) {
             if ((verticalGuideline.center.x < button.position.x + 1) &&
                 (verticalGuideline.center.x > button.position.x - 1)) {
@@ -233,7 +255,7 @@
 
 /* returns reference to button layer object given the button's name*/
 - (CALayer*)controllerLayerFromName: (NSString*)name {
-    for (CALayer *buttonLayer in self.OSCButtonLayers) {
+    for (CALayer *buttonLayer in self.OSCButtonLayerPool) {
         
         if ([buttonLayer.name isEqualToString:name]) {
             return buttonLayer;

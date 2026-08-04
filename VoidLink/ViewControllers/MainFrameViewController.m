@@ -31,9 +31,8 @@
 #import "Plot.h"
 #import "CustomEdgeSlideGestureRecognizer.h"
 #import "DataManager.h"
-#import "ThemeManager.h"
 #import "FixedTintImageView.h"
-#import "VoidLink-Swift.h" // not used yet.
+#import "VoidLink-Swift.h"
 
 #if !TARGET_OS_TV
 #import "SettingsViewController.h"
@@ -72,7 +71,7 @@
     UIView* menuSeparator;
     UIView* snapshot;
     SettingsViewController* settingsViewController;
-    StreamFrameViewController* streamFrameViewController;
+    __weak StreamFrameViewController* streamFrameViewController;
     id navBarAppearanceStandard;
     bool _viewJustAppeared;
     TemporaryApp * launchedApp;
@@ -81,6 +80,7 @@
     
     id _controllerConnectObserver;
     id _controllerDisconnectObserver;
+    UIView* _debugGamepadOverlay;
 
 
 #if TARGET_OS_TV
@@ -149,11 +149,13 @@ static NSMutableSet* hostList;
 - (void)updateTitle {
 
     if (@available(iOS 13.0, *)) {
+        UINavigationBarAppearance* appearance = navBarAppearanceStandard;
         NSDictionary* titleTextAttributes = @{
             NSFontAttributeName: [UIFont systemFontOfSize:20 weight:UIFontWeightMedium],
-            NSForegroundColorAttributeName: [ThemeManager textColor] // 可选，设置标题颜色
+            NSForegroundColorAttributeName: ThemeManager.textColor // 可选，设置标题颜色
         };
-        [navBarAppearanceStandard setValue:titleTextAttributes forKey:@"titleTextAttributes"];
+        appearance.titleTextAttributes = titleTextAttributes;
+        navBarAppearanceStandard = appearance;
     }
 
     if (_selectedHost != nil) {
@@ -165,16 +167,19 @@ static NSMutableSet* hostList;
     }
     else {
         if (@available(iOS 13.0, *)) {
+
+            UINavigationBarAppearance* appearance = navBarAppearanceStandard;
             NSDictionary* titleTextAttributes = @{
-                NSFontAttributeName: [UIFont systemFontOfSize:22 weight:UIFontWeightMedium],
-                NSForegroundColorAttributeName: [ThemeManager textColor] // 可选，设置标题颜色
+                NSFontAttributeName: [UIFont systemFontOfSize:20 weight:UIFontWeightMedium],
+                NSForegroundColorAttributeName: ThemeManager.textColor // 可选，设置标题颜色
             };
-            [navBarAppearanceStandard setValue:titleTextAttributes forKey:@"titleTextAttributes"];
+            appearance.titleTextAttributes = titleTextAttributes;
+            navBarAppearanceStandard = appearance;
         }
         /*
         self.navigationController.navigationBar.titleTextAttributes = @{
             NSFontAttributeName: [UIFont systemFontOfSize:24 weight:UIFontWeightSemibold],
-            NSForegroundColorAttributeName: [ThemeManager textColor] // 可选，设置标题颜色
+            NSForegroundColorAttributeName: ThemeManager.textColor // 可选，设置标题颜色
         };*/
         self.title = [LocalizationHelper localizedStringForKey: @"Hosts" ];
         //self.title = nil;
@@ -376,14 +381,14 @@ static NSMutableSet* hostList;
     // [self.view bringSubviewToFront:self.collectionView];
     self.hostCollectionVC.view.hidden = YES;
     self.collectionView.hidden = NO;
-    self.collectionView.backgroundColor = [ThemeManager appBackgroundColor];
+    self.collectionView.backgroundColor = ThemeManager.hostViewBackgroundColor;
     //self.view.backgroundColor = [ThemeManager appBackgroundColor];
 
-    [self.collectionView setContentOffset:CGPointZero animated:NO];
+    // [self.collectionView setContentOffset:CGPointZero animated:NO];
     
     [self attachWaterMark];
     self.navigationItem.rightBarButtonItems = @[_upButton];
-    self.revealViewController.mainFrameIsInHostView = false;
+    self.revealViewController.mainFrameIsInHostView = false;  
     // [self disableNavigation];
     [self updateTitle];
     [self alreadyPaired];
@@ -604,7 +609,7 @@ static NSMutableSet* hostList;
     Log(LOG_D, @"Long clicked host: %@", host.name);
     NSString* message;
     
-    NSString* hostAddress = [host.activeAddress componentsSeparatedByString:@":"].firstObject;
+    NSString* hostAddress = [Utils addressPortStringToAddress:host.activeAddress];
     
     switch (host.state) {
         case StateOffline:
@@ -646,11 +651,10 @@ static NSMutableSet* hostList;
         }]];
     }
     else if (host.pairState == PairStatePaired) {
-        /*
         [longClickAlert addAction:[UIAlertAction actionWithTitle:[LocalizationHelper localizedStringForKey:@"View All Apps"] style:UIAlertActionStyleDefault handler:^(UIAlertAction* action){
             self->_showHiddenApps = YES;
-            [self hostClicked:host view:view];
-        }]]; */
+            [self appButtonTappedForHost:host];
+        }]];
         
 #if !TARGET_OS_TV
       
@@ -720,6 +724,7 @@ static NSMutableSet* hostList;
 
 - (void) addHostTapped {
     Log(LOG_D, @"Tapped add host");
+    GenericUtils.autoPopSoftKeyboard = !GenericUtils.isIPhone;
     UIAlertController* alertController = [UIAlertController alertControllerWithTitle:[LocalizationHelper localizedStringForKey:@"Add Host Manually"]
                                                                              message:[LocalizationHelper localizedStringForKey:@"Enter IP address to add host manually"]
                                                                       preferredStyle:UIAlertControllerStyleAlert];
@@ -729,6 +734,7 @@ static NSMutableSet* hostList;
         textField.keyboardType = UIKeyboardTypeASCIICapable;
         textField.autocorrectionType = UITextAutocorrectionTypeNo;
         textField.spellCheckingType = UITextSpellCheckingTypeNo;
+        textField.delegate = self;
     }];
 
     [alertController addAction:[UIAlertAction actionWithTitle:[LocalizationHelper localizedStringForKey:@"Cancel"]
@@ -781,6 +787,12 @@ static NSMutableSet* hostList;
 }
 
 - (void) prepareToStreamApp:(TemporaryApp *)app {
+    
+    self.navigationController.navigationBar.hidden = true;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        self.navigationController.navigationBar.hidden = false;
+    });
+    
     launchedApp = app;
     [self updateResolutionAccordingly];
     self.revealViewController.isStreaming = true; // tell the revealViewController streaming is started.
@@ -872,11 +884,13 @@ static NSMutableSet* hostList;
         case CODEC_PREF_AV1:
 #if defined(__IPHONE_16_0) || defined(__TVOS_16_0)
             if (VTIsHardwareDecodeSupported(kCMVideoCodecType_AV1)) {
+                _streamConfig.fullColorRange = false;
                 if (streamSettings.enableYUV444) {
                     _streamConfig.supportedVideoFormats |= VIDEO_FORMAT_AV1_HIGH8_444;
                 }
                 else {
-                    _streamConfig.supportedVideoFormats |= VIDEO_FORMAT_AV1_MAIN8;
+                    if(streamSettings.sdrPerformanceWorkaround && [Utils hdrSupported]) _streamConfig.supportedVideoFormats |= VIDEO_FORMAT_AV1_MAIN10; // 8bit performance degradation workaround for av1
+                    else _streamConfig.supportedVideoFormats |= VIDEO_FORMAT_AV1_MAIN8;
                 }
             }
 #endif
@@ -886,10 +900,13 @@ static NSMutableSet* hostList;
         case CODEC_PREF_HEVC:
             if (VTIsHardwareDecodeSupported(kCMVideoCodecType_HEVC)) {
                 if (streamSettings.enableYUV444) {
-                    _streamConfig.supportedVideoFormats |= VIDEO_FORMAT_H265_REXT8_444;
+                    if(streamSettings.sdrPerformanceWorkaround && [Utils hdrSupported]) _streamConfig.supportedVideoFormats |= VIDEO_FORMAT_H265_REXT10_444; // 8bit performance degradation workaround
+                    else _streamConfig.supportedVideoFormats |= VIDEO_FORMAT_H265_REXT8_444;
                 }
                 else {
-                    _streamConfig.supportedVideoFormats |= VIDEO_FORMAT_H265;
+                    // _streamConfig.supportedVideoFormats |= VIDEO_FORMAT_H265;
+                    if(streamSettings.sdrPerformanceWorkaround && [Utils hdrSupported]) _streamConfig.supportedVideoFormats |= VIDEO_FORMAT_H265_MAIN10; // 8bit performance degradation workaround
+                    else _streamConfig.supportedVideoFormats |= VIDEO_FORMAT_H265;
                 }
             }
             // Fall-through
@@ -905,8 +922,10 @@ static NSMutableSet* hostList;
     
     // HEVC is supported if the user wants it (or it's required by the chosen resolution) and the SoC supports it
     if ((_streamConfig.width > 4096 || _streamConfig.height > 4096 || streamSettings.enableHdr) && VTIsHardwareDecodeSupported(kCMVideoCodecType_HEVC)) {
-        _streamConfig.supportedVideoFormats |= VIDEO_FORMAT_H265;
         
+        if(streamSettings.sdrPerformanceWorkaround && [Utils hdrSupported]) _streamConfig.supportedVideoFormats |= VIDEO_FORMAT_H265_MAIN10; // 8bit performance degradation workaround
+        else _streamConfig.supportedVideoFormats |= VIDEO_FORMAT_H265;
+
         // HEVC Main10 is supported if the user wants it and the display supports it
         if (streamSettings.enableHdr && (AVPlayer.availableHDRModes & AVPlayerHDRModeHDR10) != 0) {
             if (streamSettings.enableYUV444) {
@@ -1147,6 +1166,59 @@ static NSMutableSet* hostList;
     }
 }
 
+- (void)profilesButtonTapped {
+    if([GenericUtils isFirstTappingGameProfileSelectorFromMainFrame]){
+        
+        DataManager* dataMan = [[DataManager alloc] init];
+        Settings* settings = [dataMan retrieveSettings];
+
+        
+        NSString* edgeSide = settings.slideToSettingsScreenEdge.intValue != UIRectEdgeLeft ? [LocalizationHelper localizedStringForKey:@"left"] : [LocalizationHelper localizedStringForKey:@"right"];
+        NSString* slideDist = [NSString stringWithFormat:@"%d%%", (int)(settings.slideToSettingsDistance.floatValue*100)];
+
+        [AlertControllerUtil showAlertIn:self
+                                        title:[LocalizationHelper localizedStringForKey:@"Game Profile"]
+                                      message:[LocalizationHelper localizedStringForKey:@"gameProfileIntroduction", edgeSide, slideDist]
+                                   withCancel:NO
+                                  buttonTitle:[LocalizationHelper localizedStringForKey:@"Got it!"]
+                                    countdown:6
+                                       action:^{}
+                                   completion:^{
+            [self openGameProfileSeletor];
+        }];
+    }
+    else [self openGameProfileSeletor];
+}
+
+- (void)openGameProfileSeletor{
+    if(settingsViewController){
+        [settingsViewController mainFrameGameProfileButtonTapped];
+        return;
+    }
+    
+    LayoutOnScreenControlsViewController* layoutToolVC;
+    BOOL isIPhone = ([UIDevice currentDevice].userInterfaceIdiom == UIUserInterfaceIdiomPhone);
+    if (isIPhone) {
+        UIStoryboard *storyboard = [UIStoryboard storyboardWithName:@"iPhone" bundle:nil];
+        layoutToolVC = [storyboard instantiateViewControllerWithIdentifier:@"LayoutOnScreenControlsViewController"];
+    }
+    else {
+        UIStoryboard *storyboard = [UIStoryboard storyboardWithName:@"iPad" bundle:nil];
+        layoutToolVC = [storyboard instantiateViewControllerWithIdentifier:@"LayoutOnScreenControlsViewController"];
+        layoutToolVC.modalPresentationStyle = UIModalPresentationFullScreen;
+    }
+    layoutToolVC.view.backgroundColor = UIColor.clearColor;
+    layoutToolVC.modalPresentationStyle = UIModalPresentationOverCurrentContext;
+    
+    
+    layoutToolVC.profileTableLoadingMode = OSCProfilesTableViewLoadingModeSelectProfileFromMainFrame;
+    layoutToolVC.toolbarStackView.hidden = true;
+    layoutToolVC.toolbarRootView.hidden = true;
+    [self presentViewController:layoutToolVC animated:NO completion:^{
+        [layoutToolVC presentProfilesTableViewWithLoadingMode:OSCProfilesTableViewLoadingModeSelectProfileFromMainFrame];
+    }];
+}
+
 // currently obselete:
 - (void) setNeedsUpdateAllowedOrientation{
     if (@available(iOS 16.0, *)) {
@@ -1161,10 +1233,23 @@ static NSMutableSet* hostList;
     revealController.navBarMenuDelegate = settingsViewController;
     _settingsViewExpanded = position != FrontViewPositionLeft;
     if (position == FrontViewPositionLeft) {
-        self.navigationItem.leftBarButtonItems = @[_settingsButton];
+       if (@available(iOS 26.0, *)) {
+            _settingsButton.sharesBackground = false;
+            _profilesButton.sharesBackground = false;
+        }
+        self.navigationItem.leftBarButtonItems = @[_settingsButton, _profilesButton];
+        
+        if(streamFrameViewController.streamMan){
+            // NSLog(@"setNeedRequeuing %f", CACurrentMediaTime());
+            double delayInSeconds = 0.1;
+            dispatch_time_t popTime = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delayInSeconds * NSEC_PER_SEC));
+            dispatch_after(popTime, dispatch_get_main_queue(), ^{
+                [self->streamFrameViewController.streamMan setNeedRequeuing:true];
+            });
+        }
     }
     else {
-        self.navigationItem.leftBarButtonItems = @[];
+        self.navigationItem.leftBarButtonItems = @[_profilesButton];
         [settingsViewController updateTheme];
     }
 
@@ -1182,8 +1267,9 @@ static NSMutableSet* hostList;
     // [settingsViewController widget:settingsViewController.bitrateSlider setEnabled:!self.settingsExpandedInStreamView];
     [settingsViewController setHidden:_settingsExpandedInStreamView forStack:settingsViewController.optimizeGamesStack];
     [settingsViewController setHidden:_settingsExpandedInStreamView forStack:settingsViewController.audioOnPcStack];
-    [settingsViewController.touchModeSelector1 setEnabled:!_settingsExpandedInStreamView || !(settingsViewController.touchModeSelector1.selectedSegmentIndex == AbsoluteTouch && !settingsViewController.passthroughGesturesSwitch.isOn)];
-    [settingsViewController.touchModeSelector2 setEnabled:settingsViewController.touchModeSelector1.enabled];
+    [settingsViewController setHidden:_settingsExpandedInStreamView forStack:settingsViewController.sdrPerformanceWorkaroundStack];
+    // [settingsViewController.touchModeSelector1 setEnabled:!_settingsExpandedInStreamView || !(settingsViewController.touchModeSelector1.selectedSegmentIndex == AbsoluteTouch && !settingsViewController.passthroughGesturesSwitch.isOn)];
+    // [settingsViewController.touchModeSelector2 setEnabled:settingsViewController.touchModeSelector1.enabled];
     
     [settingsViewController.codecSelector setEnabled:!_settingsExpandedInStreamView];
     if(_settingsExpandedInStreamView){
@@ -1220,14 +1306,18 @@ static NSMutableSet* hostList;
     [settingsViewController setHidden:_settingsExpandedInStreamView forStack:settingsViewController.appThemeStack];
     [settingsViewController.renderingBackendSelector setEnabled:!_settingsExpandedInStreamView];
     // Enable frame pacing mode selector only if not in stream view AND not in performance mode
-    BOOL shouldEnableFramePacing = !_settingsExpandedInStreamView && (settingsViewController.renderingBackendSelector.selectedSegmentIndex != RENDER_METAL);
-    [settingsViewController.framePacingModeSelector setEnabled:shouldEnableFramePacing];
+    BOOL shouldEnableFramePacingSelector = !_settingsExpandedInStreamView && (settingsViewController.renderingBackendSelector.selectedSegmentIndex != RENDER_METAL);
+    [settingsViewController.framePacingModeSelector setEnabled:shouldEnableFramePacingSelector];
+    // [settingsViewController.frameTimebaseSwitch setEnabled:shouldEnableFramePacing];
+    [settingsViewController.asyncFrameDequeueSwitch setEnabled:shouldEnableFramePacingSelector];
+    [settingsViewController setHidden:_settingsExpandedInStreamView || !(shouldEnableFramePacingSelector && settingsViewController.framePacingModeSelector.selectedSegmentIndex == FramePacingModeQueue) forStack:settingsViewController.frameQueueSizeStack];
+
     // Disable mic switch if sunshine does not support mic redirection
     [settingsViewController.redirectMicSwitch setEnabled:!_settingsExpandedInStreamView||streamFrameViewController.micStreamInitialized];
     if(_settingsExpandedInStreamView && !streamFrameViewController.micStreamInitialized) [settingsViewController.redirectMicSwitch setOn:false];
     [settingsViewController setHidden:!settingsViewController.redirectMicSwitch.isOn forStack:settingsViewController.useBuiltinMicStack];
     [settingsViewController.useBuiltinMicSwitch setEnabled:!_settingsExpandedInStreamView];
-    [settingsViewController.passthroughGesturesSwitch setEnabled:!_settingsExpandedInStreamView];
+    // [settingsViewController.passthroughGesturesSwitch setEnabled:!_settingsExpandedInStreamView];
 }
 
 - (void)revealController:(SWRevealViewController *)revealController didMoveToPosition:(FrontViewPosition)position {
@@ -1257,6 +1347,7 @@ static NSMutableSet* hostList;
         streamFrameViewController.mainFrameViewcontroller = self;
         streamFrameViewController.streamConfig = _streamConfig;
     }
+    NSLog(@"streamVC seque... %lu %f",(uintptr_t)streamFrameViewController , CACurrentMediaTime());
 }
 
 - (void) showLoadingFrame:(void (^)(void))completion {
@@ -1335,11 +1426,12 @@ static NSMutableSet* hostList;
     }
 }
 
-- (BOOL)isFirstLaunch {
-    NSString *key = @"appHasLaunchedBefore";
-    BOOL launchedBefore = [[NSUserDefaults standardUserDefaults] boolForKey:key];
+- (BOOL)needPopupAboutView {
+    // NSString *key = @"appHasLaunchedBefore";
+    NSString *key = @"needPopupAboutView20260215";
+    BOOL keyExists = [[NSUserDefaults standardUserDefaults] boolForKey:key];
 
-    if (!launchedBefore) {
+    if (!keyExists) {
         [[NSUserDefaults standardUserDefaults] setBool:YES forKey:key];
         [[NSUserDefaults standardUserDefaults] synchronize]; // iOS 12+ 可省略
         return YES;
@@ -1363,31 +1455,44 @@ static NSMutableSet* hostList;
 
 - (UIBarButtonItem *)createAddHostButton{
     // 创建按钮
+    
+    bool liquidGlassEnabled = GenericUtils.liquidGlassEnabled;
+    // bool liquidGlassEnabled = false;
+
     CGFloat buttonHeight = 30;
     UIButton *button = [UIButton buttonWithType:UIButtonTypeCustom];
-    button.backgroundColor = [ThemeManager appPrimaryColor]; // #0A85FF
+    button.backgroundColor = liquidGlassEnabled ? ThemeManager.appPrimaryColor : ThemeManager.appPrimaryColor; // #0A85FF
     button.layer.cornerRadius = buttonHeight/2;
-    button.clipsToBounds = YES;
+    button.clipsToBounds = !liquidGlassEnabled;
 
     // 设置图标（SF Symbol）
 
     if (@available(iOS 13.0, *)) {
-        UIImageSymbolConfiguration *config = [UIImageSymbolConfiguration configurationWithPointSize:17 weight:UIImageSymbolWeightMedium];
+        UIImageSymbolConfiguration *config = [UIImageSymbolConfiguration
+                                              configurationWithPointSize:liquidGlassEnabled ? 18.7 :17
+                                              weight:liquidGlassEnabled ? UIImageSymbolWeightRegular :UIImageSymbolWeightMedium];
         UIImage *image = [UIImage systemImageNamed:@"plus.circle" withConfiguration:config];
         [button setImage:image forState:UIControlStateNormal];
-        [button setTitle:[LocalizationHelper localizedStringForKey:@" Add Host"] forState:UIControlStateNormal]; // 注意空格用于间隔
+        button.imageEdgeInsets = liquidGlassEnabled ? UIEdgeInsetsMake(0, 7.6, 0.75, 0) : UIEdgeInsetsZero;;
+        NSString* buttonStringHead = liquidGlassEnabled ? @"  " : @"";
+        [button setTitle: [buttonStringHead stringByAppendingString:
+                           [LocalizationHelper localizedStringForKey:@" Add Host"]]
+                forState:UIControlStateNormal]; // 注意空格用于间隔
     } else {
         [button setTitle:[LocalizationHelper localizedStringForKey:@"Add Host"] forState:UIControlStateNormal]; // 注意空格用于间隔
     }
     // [button setTitleColor:UIColor.whiteColor forState:UIControlStateNormal];
 
-    button.titleLabel.font = [UIFont systemFontOfSize:16 weight:UIFontWeightMedium];
+    button.titleLabel.font = [UIFont systemFontOfSize:liquidGlassEnabled ? 16 : 16 weight:UIFontWeightMedium];
     // 文字颜色设置为 tintColor 控制
-    button.tintColor = UIColor.whiteColor;
+    if(liquidGlassEnabled) button.titleEdgeInsets = UIEdgeInsetsMake(0, 0, 0.9, 0);
+    button.tintColor = liquidGlassEnabled ? ThemeManager.appPrimaryColor : UIColor.whiteColor;
     [button setTitleColor:button.tintColor forState:UIControlStateNormal];
+    // button.tintColor = UIColor.whiteColor;
+    // [button setTitleColor:button.tintColor forState:UIControlStateNormal];
 
     // 设置按下时的 tintColor（变灰或淡）
-    UIColor *highlightColor = [ThemeManager textColorGray];
+    UIColor *highlightColor = ThemeManager.textColorGray;
     [button setTitleColor:highlightColor forState:UIControlStateHighlighted];
     button.adjustsImageWhenHighlighted = YES; // 图标自动变淡
 
@@ -1399,6 +1504,7 @@ static NSMutableSet* hostList;
 
     // 创建 UIBarButtonItem
     UIBarButtonItem *barItem = [[UIBarButtonItem alloc] initWithCustomView:button];
+    
     return barItem;
 }
 
@@ -1412,7 +1518,9 @@ static NSMutableSet* hostList;
 
     // 设置图标（SF Symbol）
     if (@available(iOS 13.0, *)) {
-        UIImageSymbolConfiguration *config = [UIImageSymbolConfiguration configurationWithPointSize:buttonHeight*0.85 weight:UIImageSymbolWeightRegular];
+        UIImageSymbolConfiguration *config = [UIImageSymbolConfiguration configurationWithPointSize:
+                                             GenericUtils.liquidGlassEnabled ? buttonHeight*0.73 : buttonHeight*0.85
+                                            weight:UIImageSymbolWeightRegular];
         UIImage *image = [UIImage systemImageNamed:@"questionmark.circle" withConfiguration:config];
         [button setImage:image forState:UIControlStateNormal];
         [button setTitle:@"" forState:UIControlStateNormal]; // 注意空格用于间隔
@@ -1423,7 +1531,7 @@ static NSMutableSet* hostList;
 
     button.titleLabel.font = [UIFont systemFontOfSize:buttonHeight*0.6 weight:UIFontWeightMedium];
     // 文字颜色设置为 tintColor 控制
-    button.tintColor = [ThemeManager appPrimaryColor];
+    button.tintColor = ThemeManager.appPrimaryColor;
     [button setTitleColor:button.tintColor forState:UIControlStateNormal];
 
     button.frame = CGRectMake(0, 0, buttonHeight*1.3, buttonHeight*1.05);
@@ -1446,10 +1554,6 @@ static NSMutableSet* hostList;
     }
 }
 
-- (CGFloat)getStandardNavBarHeight{
-    return [self isIPhone] ? UINavigationBarHeightIPhone : UINavigationBarHeightIPad;
-}
-
 - (void)applyNavBarAppearance{
     if (@available(iOS 13.0, *)) {
         self.navigationController.navigationBar.standardAppearance.backgroundColor = [UIColor clearColor]; // old ios depend on this, do not remove
@@ -1459,30 +1563,34 @@ static NSMutableSet* hostList;
     else{
         self.navigationController.navigationBar.backgroundColor = [UIColor clearColor]; // old ios depend on this, do not remove
         self.navigationController.navigationBar.barTintColor = [UIColor clearColor]; // ios 14 depend on this, do not remove
-        self.navigationController.navigationBar.barTintColor = [ThemeManager appBackgroundColor]; // ios 14 depend on this, do not remove
+        self.navigationController.navigationBar.barTintColor = ThemeManager.hostViewBackgroundColor; // ios 14 depend on this, do not remove
     }
 }
 
 - (void)setupNavBar{
     if (@available(iOS 13.0, *)) {
-        Class appearanceClass = NSClassFromString(@"UINavigationBarAppearance");
-        navBarAppearanceStandard = [[appearanceClass alloc] init];
-        [navBarAppearanceStandard performSelector:@selector(configureWithOpaqueBackground)]; // 不透明
-        [navBarAppearanceStandard setValue:[ThemeManager appBackgroundColor] forKey:@"backgroundColor"]; // 设置你需要的背景色
-        [navBarAppearanceStandard setValue:nil forKey:@"shadowColor"]; // 设置你需要的背景色
+        UINavigationBarAppearance* appearance = [[UINavigationBarAppearance alloc] init];
+        [appearance configureWithOpaqueBackground];
+        appearance.backgroundColor = ThemeManager.hostViewBackgroundColor;
+        appearance.shadowColor = nil;
         NSDictionary* titleTextAttributes = @{
-            NSForegroundColorAttributeName: [ThemeManager textColor]
+            NSForegroundColorAttributeName: ThemeManager.textColor
         };
-        [navBarAppearanceStandard setValue:titleTextAttributes forKey:@"titleTextAttributes"];
-        [navBarAppearanceStandard setValue:[UIColor clearColor] forKey:@"shadowColor"];
-        [navBarAppearanceStandard setValue:nil forKey:@"backgroundImage"];
-
-        //navBarAppearanceStandard.backgroundImage = nil;
+        appearance.titleTextAttributes = titleTextAttributes;
+        appearance.shadowColor = [UIColor clearColor];
+        appearance.backgroundImage = nil;
+        navBarAppearanceStandard = appearance;
     }
     [self applyNavBarAppearance];
 
     self->_addHostButton = [self createAddHostButton];
     self->_helpButton = [self createHelpButton];
+    if (GenericUtils.liquidGlassEnabled) {
+        if (@available(iOS 26.0, *)) {
+            // _addHostButton.hidesSharedBackground = true;
+            // _helpButton.hidesSharedBackground = true;
+        }
+    }
     //[self setupHostViewTitle];
 
 
@@ -1495,26 +1603,63 @@ static NSMutableSet* hostList;
     [_settingsButton setAction:@selector(revealToggle:)];
     if (@available(iOS 13.0, *)) {
         [_settingsButton setTitle:nil];
-        UIImageSymbolConfiguration *config = [UIImageSymbolConfiguration configurationWithPointSize:23 weight:UIImageSymbolWeightMedium ];
+        UIImageSymbolConfiguration *config = [UIImageSymbolConfiguration configurationWithPointSize:GenericUtils.liquidGlassEnabled ? 18 : 23 weight:UIImageSymbolWeightMedium ];
         UIImage *image = [[UIImage systemImageNamed:@"sidebar.left" withConfiguration:config] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
         [_settingsButton setImage:image];
-        _settingsButton.imageInsets = UIEdgeInsetsMake(10, 10, 0, 0);
+        _settingsButton.imageInsets = GenericUtils.liquidGlassEnabled ? UIEdgeInsetsMake(0, 0, 0, 0.55) : UIEdgeInsetsMake(10, 10, 0, 0);
+        if(GenericUtils.liquidGlassEnabled){
+            // if(@available(iOS 26.0, *)) _settingsButton.hidesSharedBackground = YES;
+            _settingsButton.tintColor = ThemeManager.appPrimaryColor;
+        }
     } else {
         [_settingsButton setTitle:[LocalizationHelper localizedStringForKey:@"Settings"]];
     }
 
+    [_profilesButton setTarget:self];
+    [_profilesButton setAction:@selector(profilesButtonTapped)];
+    if (@available(iOS 13.0, *)) {
+        [_profilesButton setTitle:nil];
+        
+        UIImageSymbolConfiguration *config;
+        UIImage *image;
+        if(GenericUtils.iOS18Available){
+            config = [UIImageSymbolConfiguration configurationWithPointSize:GenericUtils.liquidGlassEnabled ? 20.5 : 23 weight:UIImageSymbolWeightRegular ];
+            image = [[UIImage systemImageNamed: @"gamecontroller.circle" withConfiguration:config] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+            [_profilesButton setImage:image];
+            _profilesButton.imageInsets = GenericUtils.liquidGlassEnabled ? UIEdgeInsetsMake(0, 0, 0, 0.55) : UIEdgeInsetsMake(10, 10, 0, 0);
+            if(GenericUtils.liquidGlassEnabled){
+                _profilesButton.tintColor = ThemeManager.appPrimaryColor;
+            }
+        }
+        else{
+            image = [[UIImage imageNamed: @"gamecontroller.circle.regular"] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+            [_profilesButton setImage:image];
+            _profilesButton.imageInsets = UIEdgeInsetsMake(-1.5, 0, -1.5, 0);
+            _profilesButton.tintColor = ThemeManager.appPrimaryColor;
+        }
+        
+        
+    } else {
+        [_profilesButton setTitle:[LocalizationHelper localizedStringForKey:@"Game Profile"]];
+    }
     
+    if (@available(iOS 26.0, *)) {
+         _settingsButton.sharesBackground = false;
+         _profilesButton.sharesBackground = false;
+     }
+
     
     
     // Set the host name button action. When it's tapped, it'll show the host selection view.
     _upButton = [[UIBarButtonItem alloc] init];
     
+    
     if (@available(iOS 13.0, *)) {
         [_upButton setTitle:@""];
-        UIImageSymbolConfiguration *config = [UIImageSymbolConfiguration configurationWithPointSize:21.5 weight:UIImageSymbolWeightMedium ];
-        UIImage *image = [[UIImage systemImageNamed:@"tv" withConfiguration:config] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+        UIImageSymbolConfiguration *config = [UIImageSymbolConfiguration configurationWithPointSize:GenericUtils.liquidGlassEnabled ? 16 : 21.5 weight:UIImageSymbolWeightMedium];
+        UIImage *image = [[UIImage systemImageNamed:GenericUtils.liquidGlassEnabled ? @"macwindow.on.rectangle" : @"tv" withConfiguration:config] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
         [_upButton setImage:image];
-        _upButton.imageInsets = UIEdgeInsetsMake(25, 20, 0, 15);
+        _upButton.imageInsets = GenericUtils.liquidGlassEnabled ? UIEdgeInsetsMake(0, 0, 0, 1) : UIEdgeInsetsMake(25, 20, 0, 15);
     } else {
         [_upButton setTitle:[LocalizationHelper localizedStringForKey:@"Select New Host"]];
     }
@@ -1525,27 +1670,29 @@ static NSMutableSet* hostList;
 }
 
 - (void)updateTheme {
-    self.view.backgroundColor = [ThemeManager appBackgroundColor];
-    self.hostCollectionVC.view.backgroundColor = [ThemeManager appBackgroundColor];
-    self.collectionView.backgroundColor = [ThemeManager appBackgroundColor];
+    self.view.backgroundColor = ThemeManager.hostViewBackgroundColor;
+    self.hostCollectionVC.view.backgroundColor = ThemeManager.hostViewBackgroundColor;
+    self.collectionView.backgroundColor = ThemeManager.hostViewBackgroundColor;
 
     if (@available(iOS 13.0, *)) {
-        [navBarAppearanceStandard setValue:[ThemeManager appBackgroundColor] forKey:@"backgroundColor"];
+        UINavigationBarAppearance* appearance = navBarAppearanceStandard;
+        appearance.backgroundColor = ThemeManager.hostViewBackgroundColor;
         NSDictionary* titleTextAttributes = @{
-            NSForegroundColorAttributeName: [ThemeManager textColor]
+            NSForegroundColorAttributeName: ThemeManager.textColor
         };
-        [navBarAppearanceStandard setValue:titleTextAttributes forKey:@"titleTextAttributes"];
+        appearance.titleTextAttributes = titleTextAttributes;
+        navBarAppearanceStandard = appearance;
     }
     
-    _settingsButton.tintColor = [ThemeManager appPrimaryColor];
-    _upButton.tintColor = [ThemeManager appPrimaryColor];
-    ((UIButton*)_addHostButton.customView).backgroundColor = [ThemeManager appPrimaryColor];
-    ((UIButton*)_helpButton.customView).tintColor = [ThemeManager appPrimaryColor];
+    _settingsButton.tintColor = ThemeManager.appPrimaryColor;
+    _upButton.tintColor = ThemeManager.appPrimaryColor;
+    ((UIButton*)_addHostButton.customView).backgroundColor = GenericUtils.liquidGlassEnabled ? UIColor.clearColor : ThemeManager.appPrimaryColor;
+    ((UIButton*)_helpButton.customView).tintColor = ThemeManager.appPrimaryColor;
 
     [self applyNavBarAppearance];
     [self updateTitle];
     if (hostViewTitleLabel) {
-        hostViewTitleLabel.textColor = [ThemeManager textColor];
+        hostViewTitleLabel.textColor = ThemeManager.textColor;
     }
     [self.hostCollectionVC updateTheme];
 }
@@ -1562,6 +1709,52 @@ static NSMutableSet* hostList;
             [ThemeManager setUserInterfaceStyle:self.traitCollection.userInterfaceStyle];
         }
     }
+}
+
+- (void)changeDefaultSettings{
+    if(![GenericUtils needUpdateDefaultSettings]) return;
+    DataManager* dataMan = [[DataManager alloc] init];
+    Settings* settings = [dataMan retrieveSettings];
+    
+    settings.preferredCodec = VTIsHardwareDecodeSupported(kCMVideoCodecType_HEVC) ? CODEC_PREF_HEVC : CODEC_PREF_H264;
+    
+    switch ([UIDevice currentDevice].userInterfaceIdiom) {
+        case UIUserInterfaceIdiomPhone:
+            settings.sdrPerformanceWorkaround = true;
+            settings.framePacingMode = @(FramePacingModeQueue);
+            settings.asyncFrameDequeue = false;
+            settings.touchMoveEventInterval = @(0);
+            break;
+        case UIUserInterfaceIdiomPad:
+        default:
+            settings.sdrPerformanceWorkaround = true;
+            settings.framePacingMode = @(FramePacingModeQueue);
+            if([UIScreen mainScreen].maximumFramesPerSecond > 110) settings.asyncFrameDequeue = false;
+            if([UIScreen mainScreen].maximumFramesPerSecond < 65) settings.asyncFrameDequeue = false;
+            break;
+    }
+    
+    if([UIScreen mainScreen].maximumFramesPerSecond > 110) settings.framerate = @(120);
+    if([UIScreen mainScreen].maximumFramesPerSecond < 65) settings.framerate = @(60);
+
+    // if([UIScreen mainScreen].maximumFramesPerSecond < 65) settings.touchMoveEventInterval = @(60);
+    settings.onscreenControls = @(OnScreenControlsLevelCustom);
+    settings.pencilTickIntervalUs = @(1750);
+    settings.oscLayoutToolFingers = @(99);
+    settings.keyboardToggleFingers = @(99);
+
+    [dataMan saveData];
+}
+
+- (void)updatePartialSettings{
+    if(![GenericUtils needUpdatePartialSettings]) return;
+    DataManager* dataMan = [[DataManager alloc] init];
+    Settings* settings = [dataMan retrieveSettings];
+    settings.touchMoveEventInterval = @(0);
+    settings.localMousePointerMode = @(0);
+    if (@available(iOS 14.0, tvOS 14.0, *)) nil;
+    else settings.appTheme = @(UIUserInterfaceStyleDark);
+    [dataMan saveData];
 }
 
 - (void)viewDidLoad{
@@ -1683,6 +1876,34 @@ static NSMutableSet* hostList;
     }];
     
     [self prewarmSoftKeyboard];
+        
+    [self changeDefaultSettings];
+    [self updatePartialSettings];
+    
+    [IAPManager.shared fetchProducts];
+    [GenericUtils handleAddOnProductPurchaseIntentFor:AddOnProductPencilProPack];
+
+    /*
+    if (@available(iOS 15.0, *)) {
+        [IAPManager checkPurchaseInfo:AddOnProductPencilProPack completion:^(PurchaseInfo* info) {
+            switch (info.status) {
+                case PurchaseStatusPurchased:
+                    NSLog(@"PurchaseStatus Purchased");
+                    break;
+                case PurchaseStatusNotPurchased:
+                    NSLog(@"PurchaseStatus NotPurchased");
+                    break;
+                case PurchaseStatusRevoked:
+                    NSLog(@"PurchaseStatus Revoked");
+                    break;
+                default:
+                    break;
+            }
+            NSLog(@"PurchaseStatus Valid: %d", info.valid);
+            NSLog(@"PurchaseStatus Expiration: %@", info.expirationDate);
+        }];
+    }
+    */
 }
 
 - (void)prewarmSoftKeyboard {
@@ -1902,7 +2123,7 @@ static NSMutableSet* hostList;
     //[self simulateSettingsButtonPress]; //force reload resolution table in the setting
     //[self simulateSettingsButtonPress];
     [self updateResolutionAccordingly];
-    if([self isFirstLaunch])[self helpButtonTapped];
+    if([self needPopupAboutView])[self helpButtonTapped];
 }
 
 - (void)viewWillDisappear:(BOOL)animated{
@@ -1918,7 +2139,7 @@ static NSMutableSet* hostList;
 
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(updateTheme)
-                                                 name:ThemeDidChangeNotification
+                                                 name:ThemeManager.ThemeDidChangeNotification
                                                object:nil];
 
     /* this makes background color works*/
@@ -2294,6 +2515,15 @@ static NSMutableSet* hostList;
 - (BOOL)textFieldShouldReturn:(UITextField *)textField {
     [textField resignFirstResponder];
     return YES;
+}
+
+- (BOOL)textFieldShouldBeginEditing:(UITextField *)textField {
+    if (GenericUtils.autoPopSoftKeyboard) {
+        return YES;
+    } else {
+        GenericUtils.autoPopSoftKeyboard = YES;
+        return NO;
+    }
 }
 
 #if !TARGET_OS_TV

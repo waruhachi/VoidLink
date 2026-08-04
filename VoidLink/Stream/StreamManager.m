@@ -114,9 +114,16 @@
     });
 }
 
+- (void) setNeedRequeuing:(bool)needRequeuing{
+    if (_videoRenderer.queueSize==0) return;
+    [_videoRenderer.frameQueue clear];
+    _videoRenderer.needRequeuing = needRequeuing;
+}
+
 - (void) stopStream
 {
     [_connection terminate];
+    _callbacks = nil;
 }
 
 - (BOOL) launchApp:(HttpManager*)hMan receiveSessionUrl:(NSString**)sessionUrl {

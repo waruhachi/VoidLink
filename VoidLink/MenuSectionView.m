@@ -8,16 +8,16 @@
 // MenuSectionView.m
 
 #import "MenuSectionView.h"
-#import "ThemeManager.h"
+#import "VoidLink-Swift.h"
 
 
 @interface MenuSectionView ()
 
-@property (nonatomic, strong) UILabel *titleLabel;
 @property (nonatomic, strong) UIButton *toggleButton;
 @property (nonatomic, strong) UIButton *toggleArea;
 @property (nonatomic, strong) NSLayoutConstraint *heightConstraint;
 @property (nonatomic, strong) UIView *headerView;
+@property (assign) CGFloat titleOffset;
 
 @end
 
@@ -52,7 +52,7 @@ static BOOL overridePersistedFoldState = YES;
 
 - (void)commonInit {
     // 默认值
-    _leadingTrailingPadding = 0;
+    _leadingTrailingPadding = 5;
     _separatorLinePadding = 40;
     _sectionTitle = @"Section";
     _isExpanded = YES;
@@ -62,6 +62,7 @@ static BOOL overridePersistedFoldState = YES;
     _subStackViews = [NSMutableArray array];
     _headerViewHeight = 37;
     _headerViewVerticalSpacing = 25;
+    _titleOffset = 41.5;
     
     // 设置视图
     self.layer.cornerRadius = 10.0;
@@ -77,14 +78,15 @@ static BOOL overridePersistedFoldState = YES;
     _iconImageView = [[UIImageView alloc] init];
     _iconImageView.contentMode = UIViewContentModeScaleAspectFit;
     _iconImageView.translatesAutoresizingMaskIntoConstraints = NO;
-    _iconImageView.tintColor = [ThemeManager textColor];
+    _iconImageView.tintColor = ThemeManager.textColor;
     [_headerView addSubview:_iconImageView];
     
     // 标题标签
     _titleLabel = [[UILabel alloc] init];
     _titleLabel.text = _sectionTitle;
-    _titleLabel.font = [UIFont systemFontOfSize:23 weight:UIFontWeightMedium];
-    _titleLabel.textColor = [ThemeManager textColor];
+    _titleLabel.accessibilityIdentifier = @"menuSectionTitleLabel";
+    _titleLabel.font = [UIFont systemFontOfSize:19.5 weight:UIFontWeightMedium];
+    _titleLabel.textColor = ThemeManager.textColor;
     _titleLabel.textAlignment = NSTextAlignmentLeft;
     _titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
     [_headerView addSubview:_titleLabel];
@@ -94,7 +96,7 @@ static BOOL overridePersistedFoldState = YES;
     _toggleArea = [UIButton buttonWithType:UIButtonTypeSystem];
     if (@available(iOS 13.0, *)) {
         UIImageSymbolConfiguration *config = [UIImageSymbolConfiguration configurationWithPointSize:_headerViewHeight*0.31 weight:UIImageSymbolWeightBold];
-        [_toggleButton setImage:[UIImage systemImageNamed:@"chevron.left" withConfiguration:config] forState:UIControlStateNormal];
+        [_toggleButton setImage:[UIImage systemImageNamed:@"chevron.right" withConfiguration:config] forState:UIControlStateNormal];
     } else {
         // [_toggleButton setTitle:@"<" forState:UIControlStateNormal];
     }
@@ -116,7 +118,7 @@ static BOOL overridePersistedFoldState = YES;
     
     // 分隔线
     _separatorLine = [[UIView alloc] init];
-    _separatorLine.backgroundColor = [ThemeManager separatorColor];
+    _separatorLine.backgroundColor = ThemeManager.separatorColor;
     _separatorLine.translatesAutoresizingMaskIntoConstraints = NO;
     
     [self addSubview:_separatorLine];
@@ -142,20 +144,11 @@ static BOOL overridePersistedFoldState = YES;
         [_headerView.trailingAnchor constraintEqualToAnchor:self.trailingAnchor],
         [_headerView.heightAnchor constraintEqualToConstant:_headerViewHeight]
     ]];
-    
-    // 图标约束
-    [NSLayoutConstraint activateConstraints:@[
-        [_iconImageView.centerXAnchor constraintEqualToAnchor:_headerView.leadingAnchor constant:_leadingTrailingPadding+_headerViewHeight/2-3],
-        [_iconImageView.centerYAnchor constraintEqualToAnchor:_headerView.centerYAnchor],
-        // [_iconImageView.topAnchor constraintEqualToAnchor:_headerView.topAnchor],
-        [_iconImageView.widthAnchor constraintEqualToConstant:_headerViewHeight-6],
-        //[_iconImageView.heightAnchor constraintEqualToConstant:_headerViewHeight-6]
-    ]];
-    
+        
     // 标题约束
     if(@available(iOS 13.0, *)){
         [NSLayoutConstraint activateConstraints:@[
-            [_titleLabel.leadingAnchor constraintEqualToAnchor:_iconImageView.trailingAnchor constant:8],
+            [_titleLabel.leadingAnchor constraintEqualToAnchor:self.leadingAnchor constant:_titleOffset],
             [_titleLabel.centerYAnchor constraintEqualToAnchor:_headerView.centerYAnchor],
             [_titleLabel.trailingAnchor constraintEqualToAnchor:_toggleButton.leadingAnchor constant:-8]
         ]];
@@ -179,7 +172,7 @@ static BOOL overridePersistedFoldState = YES;
         [_toggleArea.centerYAnchor constraintEqualToAnchor:_headerView.centerYAnchor],
         [_toggleArea.trailingAnchor constraintEqualToAnchor:_toggleButton.leadingAnchor],
         //[_toggleArea.widthAnchor constraintEqualToConstant:_headerViewHeight],
-        [_toggleArea.heightAnchor constraintEqualToConstant:_headerViewHeight]
+        [_toggleArea.heightAnchor constraintEqualToConstant:_headerViewHeight+25]
     ]];
 
     [self layoutIfNeeded];
@@ -198,9 +191,9 @@ static BOOL overridePersistedFoldState = YES;
         //[_separatorLine.leadingAnchor constraintEqualToAnchor:self.leadingAnchor],
         //[_separatorLine.trailingAnchor constraintEqualToAnchor:self.trailingAnchor],
         [_separatorLine.centerXAnchor constraintEqualToAnchor:self.centerXAnchor],
-        [_separatorLine.widthAnchor constraintEqualToConstant:1000], // //mark: settingMenuLayout
+        [_separatorLine.widthAnchor constraintEqualToAnchor:self.widthAnchor constant:-5], // //mark: settingMenuLayout
         [_separatorLine.bottomAnchor constraintEqualToAnchor:self.bottomAnchor],
-        [_separatorLine.heightAnchor constraintEqualToConstant:2]
+        [_separatorLine.heightAnchor constraintEqualToConstant:GenericUtils.menuSectionSeparatorWidth]
     ]];
     
     [NSLayoutConstraint activateConstraints:@[
@@ -211,7 +204,7 @@ static BOOL overridePersistedFoldState = YES;
 
 #pragma mark - Public Methods
 
-- (void)setSectionWithIcon:(UIImage *)icon andSize:(CGFloat)size{
+- (void)setSectionWithIcon:(UIImage *)icon size:(CGFloat)size sizeConstraint:(CGFloat)constant{
     if (@available(iOS 13.0, *)) {
         UIImageSymbolConfiguration *config;
         if(icon.isSymbolImage) config = [UIImageSymbolConfiguration configurationWithPointSize:size weight:UIImageSymbolWeightBold];
@@ -223,8 +216,44 @@ static BOOL overridePersistedFoldState = YES;
     } else {
         _iconImageView.image = icon;
     }
-    _iconImageView.tintColor = [ThemeManager textColor];
+    _iconImageView.tintColor = ThemeManager.textColor;
     _iconImageView.hidden = (icon == nil);
+    
+    // 图标约束
+    [NSLayoutConstraint activateConstraints:@[
+        [_iconImageView.centerXAnchor constraintEqualToAnchor:_headerView.leadingAnchor constant:_leadingTrailingPadding+_headerViewHeight/2-3],
+        [_iconImageView.centerYAnchor constraintEqualToAnchor:_headerView.centerYAnchor constant:-0],
+        [_iconImageView.widthAnchor constraintEqualToConstant:_headerViewHeight+constant],
+        [_iconImageView.heightAnchor constraintEqualToConstant:_headerViewHeight+constant]
+    ]];
+    
+    [self updateLayout];
+}
+
+- (void)setSectionWithIcon:(UIImage *)icon size:(CGFloat)size weight:(UIImageSymbolWeight)weight sizeConstraint:(CGFloat)constant API_AVAILABLE(ios(13.0)){
+    if (@available(iOS 13.0, *)) {
+        UIImageSymbolConfiguration *config;
+        if(icon.isSymbolImage) config = [UIImageSymbolConfiguration configurationWithPointSize:size weight:weight];
+        else{
+            config = [UIImageSymbolConfiguration configurationWithPointSize:size];
+            icon = [icon imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+        }
+        _iconImageView.image = [icon imageWithConfiguration:config];
+    } else {
+        _iconImageView.image = icon;
+    }
+    _iconImageView.tintColor = ThemeManager.textColor;
+    _iconImageView.hidden = (icon == nil);
+    
+    // 图标约束
+    [NSLayoutConstraint activateConstraints:@[
+        [_iconImageView.centerXAnchor constraintEqualToAnchor:_headerView.leadingAnchor constant:_leadingTrailingPadding+_headerViewHeight/2-3],
+        [_iconImageView.centerYAnchor constraintEqualToAnchor:_headerView.centerYAnchor],
+        // [_iconImageView.topAnchor constraintEqualToAnchor:_headerView.topAnchor],
+        [_iconImageView.widthAnchor constraintEqualToConstant:_headerViewHeight+constant],
+        [_iconImageView.heightAnchor constraintEqualToConstant:_headerViewHeight+constant]
+    ]];
+    
     [self updateLayout];
 }
 
@@ -364,7 +393,7 @@ static BOOL overridePersistedFoldState = YES;
         self.heightConstraint.constant = headerHeight + _headerViewVerticalSpacing + rootStackViewHeight + _separatorLinePadding + 1;
     
         [UIView animateWithDuration:0 animations:^{
-            self.toggleButton.transform = CGAffineTransformMakeRotation(M_PI+M_PI_2);
+            self.toggleButton.transform = CGAffineTransformMakeRotation(M_PI/2);
             [NSLayoutConstraint activateConstraints:@[
                 [self.rootStackView.bottomAnchor constraintEqualToAnchor:self.bottomAnchor constant:-self.separatorLinePadding],
                 // [self.rootStackView.topAnchor constraintEqualToAnchor:self.headerView.bottomAnchor constant:0],
